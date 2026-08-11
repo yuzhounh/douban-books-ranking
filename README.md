@@ -6,9 +6,7 @@
 
 ## 在线排行榜
 
-**点击进入在线展示页面：**
-
-### <https://yuzhounh.github.io/douban-books-ranking/>
+在线展示页面：<https://yuzhounh.github.io/douban-books-ranking/>
 
 页面按“标签、豆列、丛书、Top 250”四个板块展示。切换板块会自动打开书籍数最多或排序最靠前的来源；支持来源搜索、当前页书籍筛选和分页浏览，点击“豆瓣”可打开对应书籍页面。
 
@@ -45,6 +43,51 @@
 | `url` | 豆瓣书籍页面链接 |
 
 网站目录位于 `data/catalog.json`，各来源按每页 100 本拆分为独立 JSON 文件，浏览器只加载当前页面所需的数据。
+
+## 项目结构
+
+```text
+.
+├─ src/douban_books/    # 爬虫、解析器、存储、排名、分析及发布代码
+├─ tests/               # 自动化测试与脱敏 HTML 夹具
+├─ sources/             # 最终保留的标签、豆列和丛书来源清单
+├─ analysis/            # 最终统计摘要与分析报告
+├─ assets/              # 展示页面的 JavaScript 与 CSS
+├─ data/                # 按来源和分页拆分的公开书籍数据
+├─ index.html           # GitHub Pages 入口
+└─ pyproject.toml       # Python 包与依赖配置
+```
+
+`sources/tags.txt`、`sources/doulists.txt` 和 `sources/series.txt` 是清理后的抓取入口：标签不少于 100 本，豆列不少于 10 本且排除了历史抓取失败项。Top 250 使用固定入口，无需单独的 ID 清单。
+
+SQLite 工作数据库、HTML 缓存、运行日志和备份不进入仓库；网站实际展示的书籍记录已按来源保存在 `data/` 中。
+
+## 安装与抓取
+
+需要 Python 3.10 或更高版本：
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+
+douban-books crawl `
+  --tag-file sources/tags.txt `
+  --doulist-file sources/doulists.txt `
+  --series-file sources/series.txt `
+  --top250
+```
+
+默认使用 `data/douban_books.sqlite3` 保存进度，成功页面可断点续爬。请控制请求频率；遇到 HTTP 403、418、验证码或异常请求提示时应停止。
+
+## 分析与测试
+
+```powershell
+douban-books analyze --out-dir analysis --top 5000
+python -m pytest
+```
+
+分析实现位于 `src/douban_books/analysis.py` 和 `ranking.py`。`analysis/summary.json` 提供机器可读统计，`analysis/report.md` 提供简要报告。
 
 ## 更新与发布
 

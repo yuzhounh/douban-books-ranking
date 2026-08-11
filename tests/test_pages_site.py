@@ -32,6 +32,9 @@ def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_pat
     assert catalog["title"] == "豆瓣读书排行榜"
     assert "<title>豆瓣读书排行榜</title>" in index_html
     assert "<h1>豆瓣读书排行榜</h1>" in index_html
+    assert 'id="all-threshold-controls"' in index_html
+    assert index_html.index('id="all-threshold-controls"') > index_html.index('class="books-head"')
+    assert "查找榜单" not in index_html
     assert stats == {
         "generated_at": stats["generated_at"],
         "sources": 4,

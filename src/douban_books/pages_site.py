@@ -39,6 +39,27 @@ def build_pages_site(
     }
     link_count = 0
 
+    all_rows = _rank(
+        database.connection.execute(
+            "SELECT douban_id, title, rating, votes FROM books"
+        ),
+        delta,
+    )
+    all_books_payload = {
+        "count": len(all_rows),
+        "page_size": PAGE_SIZE,
+        "books": [
+            [
+                int(row["douban_id"]),
+                str(row["title"]),
+                None if row["rating"] is None else float(row["rating"]),
+                None if row["votes"] is None else int(row["votes"]),
+            ]
+            for row in all_rows
+        ],
+    }
+    _write_json(out_dir / "data" / "all-books.json", all_books_payload)
+
     for kind, source_key, label, rows in _iter_sources(database):
         if kind == "tag" and len(rows) < min_tag_books:
             continue
@@ -83,14 +104,22 @@ def build_pages_site(
         "title": SITE_TITLE,
         "generated_at": generated_at,
         "formula": f"(评分 - {delta:g}) × ln(评价人数)",
+        "all_books": {
+            "count": len(all_rows),
+            "file": "data/all-books.json",
+            "page_size": PAGE_SIZE,
+        },
         "categories": categories,
     }
     _write_json(out_dir / "data" / "catalog.json", catalog)
     (out_dir / "index.html").write_text(INDEX_HTML, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "style.css").write_text(
-        STYLE_CSS + PAGINATION_CSS, encoding="utf-8", newline="\n"
+        STYLE_CSS + PAGINATION_CSS + FILTER_CSS, encoding="utf-8", newline="\n"
     )
     (out_dir / "assets" / "app.js").write_text(APP_JS, encoding="utf-8", newline="\n")
+    (out_dir / "assets" / "all-books-worker.js").write_text(
+        ALL_BOOKS_WORKER_JS, encoding="utf-8", newline="\n"
+    )
     workflow_dir = out_dir / ".github" / "workflows"
     workflow_dir.mkdir(parents=True, exist_ok=True)
     (workflow_dir / "pages.yml").write_text(PAGES_WORKFLOW, encoding="utf-8", newline="\n")
@@ -132,7 +161,7 @@ def _site_readme(
 
 在线展示页面：<https://yuzhounh.github.io/douban-books-ranking/>
 
-页面按“标签、豆列、丛书、Top 250”四个板块展示。切换板块会自动打开书籍数最多或排序最靠前的来源；支持来源搜索、当前页书籍筛选和分页浏览，点击“豆瓣”可打开对应书籍页面。
+页面首先提供“全部书籍”全库搜索，可按书名、豆瓣 ID、最低评分和最低评价人数筛选；其后按“标签、豆列、丛书、Top 250”四类来源展示综合排行榜。各来源支持名称搜索和分页浏览，点击“豆瓣”可打开对应书籍页面。
 
 ## 当前数据规模
 
@@ -166,7 +195,7 @@ def _site_readme(
 | `rating_count` | 评价人数 |
 | `url` | 豆瓣书籍页面链接 |
 
-网站目录位于 `data/catalog.json`，各来源按每页 100 本拆分为独立 JSON 文件，浏览器只加载当前页面所需的数据。
+网站目录位于 `data/catalog.json`，各来源按每页 100 本拆分为独立 JSON 文件，浏览器只加载当前页面所需的数据。“全部书籍”首次打开时按需加载紧凑索引 `data/all-books.json`，并在 Web Worker 中执行全库搜索与阈值筛选，避免阻塞页面交互。
 
 ## 项目结构
 
@@ -326,7 +355,7 @@ INDEX_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="浏览豆瓣读书 Top 250、标签、豆列和丛书排行">
+  <meta name="description" content="浏览和筛选豆瓣读书公开列表中的全部书籍、标签、豆列、丛书与 Top 250 排行">
   <title>豆瓣读书排行</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>[hidden]{display:none!important}</style>
@@ -342,23 +371,37 @@ INDEX_HTML = """<!doctype html>
   </header>
   <main>
     <nav class="tabs" aria-label="来源类别">
-      <button class="tab active" data-kind="tag">标签 <span id="tag-count"></span></button>
+      <button class="tab active" data-kind="all">全部书籍 <span id="all-count"></span></button>
+      <button class="tab" data-kind="tag">标签 <span id="tag-count"></span></button>
       <button class="tab" data-kind="doulist">豆列 <span id="doulist-count"></span></button>
       <button class="tab" data-kind="series">丛书 <span id="series-count"></span></button>
       <button class="tab" data-kind="top250">Top 250 <span id="top250-count"></span></button>
     </nav>
     <section class="workspace">
       <aside class="source-panel">
-        <label for="source-search">查找来源</label>
-        <input id="source-search" type="search" placeholder="输入榜单、标签、豆列或丛书名" autocomplete="off">
-        <div id="source-list" class="source-list" aria-live="polite"></div>
+        <div id="all-controls" class="all-controls">
+          <label for="all-book-search">搜索全部书籍</label>
+          <input id="all-book-search" type="search" placeholder="输入书名或豆瓣 ID" autocomplete="off">
+          <label for="min-rating">最低评分</label>
+          <input id="min-rating" type="number" min="0" max="10" step="0.1" value="0.0">
+          <label for="min-votes">最低评价人数</label>
+          <input id="min-votes" type="number" min="0" step="1" value="0">
+          <div class="filter-actions">
+            <button id="apply-all-filters" class="primary-action">应用筛选</button>
+            <button id="reset-all-filters">重置</button>
+          </div>
+        </div>
+        <div id="source-controls" hidden>
+          <label id="source-search-label" for="source-search">查找来源</label>
+          <input id="source-search" type="search" placeholder="输入来源名" autocomplete="off">
+          <div id="source-list" class="source-list" aria-live="polite"></div>
+        </div>
       </aside>
       <section class="books-panel">
         <div class="books-head">
-          <div><p class="section-label" id="kind-label">标签</p><h2 id="source-title">请选择一个来源</h2></div>
-          <label class="book-search">筛选当前页<input id="book-search" type="search" placeholder="书名或豆瓣 ID" autocomplete="off"></label>
+          <div><p class="section-label" id="kind-label">全部书籍</p><h2 id="source-title">全部书籍</h2></div>
         </div>
-        <p id="status" class="status">请选择左侧来源</p>
+        <p id="status" class="status">正在加载全部书籍索引…</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>#</th><th>ID</th><th>书名</th><th>评分</th><th>评价人数</th><th>链接</th></tr></thead>
@@ -378,7 +421,7 @@ INDEX_HTML = """<!doctype html>
     </section>
   </main>
   <footer>
-    <span>数据来自豆瓣公开的 Top 250、标签筛选页、豆列与丛书页面，仅供学习、研究与索引。评分及评价人数可能随时间变化。 <a href="https://github.com/yuzhounh/douban-books-ranking" target="_blank" rel="noopener">查看源代码</a></span>
+    <span>数据来自豆瓣公开的标签筛选页、豆列、丛书与 Top 250 页面，仅供学习、研究与索引。评分及评价人数可能随时间变化。 <a href="https://github.com/yuzhounh/douban-books-ranking" target="_blank" rel="noopener">查看源代码</a></span>
     <span id="generated-at"></span>
   </footer>
   <script src="assets/app.js" defer></script>
@@ -393,12 +436,16 @@ STYLE_CSS = r""":root{--ink:#14221b;--muted:#66736c;--paper:#f5f1e8;--card:#fffd
 PAGINATION_CSS = r""".pagination{align-items:center;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:24px 0 4px}.pagination button{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--green);cursor:pointer;font-weight:700;padding:9px 12px}.pagination button:hover:not(:disabled){background:#e4efe9;border-color:var(--green)}.pagination button:disabled{color:#a6aea9;cursor:not-allowed}.pagination label,.pagination span{color:var(--muted);font-size:13px}.pagination input{border:1px solid var(--line);border-radius:7px;font:inherit;padding:7px;text-align:center;width:64px}@media(max-width:600px){.pagination{justify-content:flex-start}.pagination button{padding:8px 10px}.pagination #first-page,.pagination #last-page{display:none}}"""
 
 
+FILTER_CSS = r""".all-controls{display:grid;gap:10px}.all-controls label{margin-top:6px}.filter-actions{display:flex;gap:8px;margin-top:8px}.filter-actions button{border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--green);cursor:pointer;font:inherit;font-weight:700;padding:10px 12px}.filter-actions button:hover{background:#e4efe9;border-color:var(--green)}.filter-actions .primary-action{background:var(--green);border-color:var(--green);color:#fff}.filter-actions .primary-action:hover{background:var(--green2)}"""
+
+
 APP_JS = r"""const PAGE_SIZE=100;const labels={tag:'标签',doulist:'豆列',series:'丛书'};let catalog=null,kind='tag',books=[],shown=0;const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));fetch('data/catalog.json').then(r=>{if(!r.ok)throw Error(r.status);return r.json()}).then(data=>{catalog=data;$('#formula').textContent='综合评分 = '+data.formula;$('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');for(const k of Object.keys(labels))$('#'+k+'-count').textContent=data.categories[k].length;renderSources();}).catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');kind=b.dataset.kind;books=[];shown=0;$('#kind-label').textContent=labels[kind];$('#source-title').textContent='请选择一个来源';$('#source-search').value='';$('#book-search').value='';$('#book-rows').innerHTML='';$('#status').textContent='请选择左侧来源';$('#load-more').hidden=true;renderSources();}));$('#source-search').addEventListener('input',renderSources);$('#book-search').addEventListener('input',()=>{shown=0;renderBooks();});$('#load-more').addEventListener('click',()=>{shown+=PAGE_SIZE;renderBooks(false)});function renderSources(){if(!catalog)return;const q=$('#source-search').value.trim().toLowerCase();const list=catalog.categories[kind].filter(x=>(x.label+' '+x.key).toLowerCase().includes(q));$('#source-list').innerHTML='';for(const src of list){const b=document.createElement('button');b.className='source-item';b.innerHTML='<span>'+esc(src.label)+'</span><span>'+src.count.toLocaleString()+'</span>';b.addEventListener('click',()=>loadSource(src,b));$('#source-list').appendChild(b)}if(!list.length)$('#source-list').textContent='没有匹配的来源';}async function loadSource(src,button){document.querySelectorAll('.source-item').forEach(x=>x.classList.remove('active'));button.classList.add('active');$('#source-title').textContent=src.label;$('#status').textContent='正在加载…';$('#book-rows').innerHTML='';$('#load-more').hidden=true;try{const r=await fetch(src.file);if(!r.ok)throw Error(r.status);const data=await r.json();books=data.books;shown=0;$('#book-search').value='';renderBooks()}catch(e){$('#status').textContent='数据加载失败，请稍后重试。'}}function renderBooks(reset=true){const q=$('#book-search').value.trim().toLowerCase();const filtered=books.filter(b=>!q||b.title.toLowerCase().includes(q)||String(b.id).includes(q));if(reset)shown=PAGE_SIZE;const slice=filtered.slice(0,shown);$('#book-rows').innerHTML=slice.map((b,i)=>'<tr><td>'+(i+1)+'</td><td>'+b.id+'</td><td>'+esc(b.title)+'</td><td>'+(b.rating??'—')+'</td><td>'+(b.rating_count==null?'—':b.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(b.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');$('#status').textContent='共 '+filtered.length.toLocaleString()+' 本，按综合评分排序';$('#load-more').hidden=shown>=filtered.length;}"""
 
 
 # The paginated implementation supersedes the original single-file client above.
-APP_JS = r"""const labels={top250:'Top 250',tag:'标签',doulist:'豆列',series:'丛书'};
-let catalog=null,kind='tag',source=null,books=[],page=1,requestId=0;
+APP_JS = r"""const labels={all:'全部书籍',tag:'标签',doulist:'豆列',series:'丛书',top250:'Top 250'};
+const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名'],top250:['查找榜单','输入榜单名']};
+let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null;
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
@@ -408,39 +455,55 @@ fetch('data/catalog.json')
     catalog=data;
     $('#formula').textContent='综合评分 = '+data.formula;
     $('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');
-    for(const name of Object.keys(labels))$('#'+name+'-count').textContent=data.categories[name].length;
-    renderSources();
-    selectFirstSource();
+    $('#all-count').textContent=data.all_books.count.toLocaleString();
+    for(const name of ['tag','doulist','series','top250'])$('#'+name+'-count').textContent=data.categories[name].length;
+    activateKind('all');
   })
   .catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');
 
-document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>{
-  document.querySelectorAll('.tab').forEach(item=>item.classList.remove('active'));
-  button.classList.add('active');
-  kind=button.dataset.kind;
-  source=null;books=[];page=1;
-  $('#kind-label').textContent=labels[kind];
-  $('#source-title').textContent='请选择一个来源';
-  $('#source-search').value='';
-  $('#book-search').value='';
-  $('#book-rows').innerHTML='';
-  $('#status').textContent='请选择左侧来源';
-  $('#pagination').hidden=true;
-  renderSources();
-  selectFirstSource();
-}));
-
+document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>activateKind(button.dataset.kind)));
 $('#source-search').addEventListener('input',renderSources);
-$('#book-search').addEventListener('input',renderBooks);
+$('#apply-all-filters').addEventListener('click',()=>loadAllBooks(1));
+$('#reset-all-filters').addEventListener('click',()=>{
+  $('#all-book-search').value='';$('#min-rating').value='0.0';$('#min-votes').value='0';loadAllBooks(1);
+});
+for(const selector of ['#all-book-search','#min-rating','#min-votes']){
+  $(selector).addEventListener('keydown',event=>{if(event.key==='Enter')loadAllBooks(1)});
+}
 $('#first-page').addEventListener('click',()=>loadPage(1));
 $('#previous-page').addEventListener('click',()=>loadPage(page-1));
 $('#next-page').addEventListener('click',()=>loadPage(page+1));
-$('#last-page').addEventListener('click',()=>loadPage(source.files.length));
+$('#last-page').addEventListener('click',()=>loadPage(totalPages));
 $('#go-page').addEventListener('click',goToInputPage);
 $('#page-number').addEventListener('keydown',event=>{if(event.key==='Enter')goToInputPage()});
 
-function renderSources(){
+function activateKind(nextKind){
   if(!catalog)return;
+  kind=nextKind;source=null;books=[];page=1;totalPages=1;resultCount=0;requestId++;
+  document.querySelectorAll('.tab').forEach(item=>item.classList.toggle('active',item.dataset.kind===kind));
+  $('#kind-label').textContent=labels[kind];
+  $('#book-rows').innerHTML='';
+  $('#pagination').hidden=true;
+  const isAll=kind==='all';
+  $('#all-controls').hidden=!isAll;
+  $('#source-controls').hidden=isAll;
+  if(isAll){
+    $('#source-title').textContent='全部书籍';
+    loadAllBooks(1);
+    return;
+  }
+  const [label,placeholder]=sourcePrompts[kind];
+  $('#source-search-label').textContent=label;
+  $('#source-search').placeholder=placeholder;
+  $('#source-search').value='';
+  $('#source-title').textContent='请选择一个来源';
+  $('#status').textContent='请选择左侧来源';
+  renderSources();
+  selectFirstSource();
+}
+
+function renderSources(){
+  if(!catalog||kind==='all')return;
   const query=$('#source-search').value.trim().toLowerCase();
   const matches=catalog.categories[kind].filter(item=>(item.label+' '+item.key).toLowerCase().includes(query));
   const list=$('#source-list');
@@ -455,64 +518,113 @@ function renderSources(){
       document.querySelectorAll('.source-item').forEach(node=>{node.classList.remove('active');node.setAttribute('aria-pressed','false')});
       button.classList.add('active');button.setAttribute('aria-pressed','true');
       $('#source-title').textContent=item.label;
-      $('#book-search').value='';
-      loadPage(1);
+      loadSourcePage(1);
     });
     list.appendChild(button);
   }
   if(!matches.length)list.textContent='没有匹配的来源';
 }
 
-function selectFirstSource(){
-  const first=$('#source-list .source-item');
-  if(first)first.click();
+function selectFirstSource(){const first=$('#source-list .source-item');if(first)first.click()}
+
+function ensureAllWorker(){
+  if(allWorker)return allWorker;
+  allWorker=new Worker('assets/all-books-worker.js');
+  allWorker.onmessage=event=>{
+    const data=event.data;
+    if(data.requestId!==requestId||kind!=='all')return;
+    if(data.error){$('#status').textContent='全部书籍索引加载失败，请稍后重试。';return}
+    books=data.books.map(item=>({id:item[0],title:item[1],rating:item[2],rating_count:item[3],url:'https://book.douban.com/subject/'+item[0]+'/'}));
+    page=data.page;totalPages=data.pages;resultCount=data.count;
+    renderBookRows(catalog.all_books.page_size);
+    $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+resultCount.toLocaleString()+' 本，按综合评分排序';
+    updatePagination();
+  };
+  return allWorker;
 }
 
-async function loadPage(target){
+function loadAllBooks(target){
+  const rating=Math.max(0,Math.min(10,Number($('#min-rating').value)||0));
+  const votes=Math.max(0,Math.floor(Number($('#min-votes').value)||0));
+  $('#min-rating').value=rating.toFixed(1);$('#min-votes').value=String(votes);
+  const currentRequest=++requestId;
+  $('#status').textContent='正在筛选全部书籍，首次使用需要加载索引…';
+  $('#book-rows').innerHTML='';$('#pagination').hidden=true;
+  ensureAllWorker().postMessage({requestId:currentRequest,file:catalog.all_books.file,page:target,pageSize:catalog.all_books.page_size,query:$('#all-book-search').value.trim(),minRating:rating,minVotes:votes});
+}
+
+async function loadSourcePage(target){
   if(!source)return;
-  const total=source.files.length;
-  target=Math.max(1,Math.min(total,Number(target)||1));
+  totalPages=source.files.length;
+  target=Math.max(1,Math.min(totalPages,Number(target)||1));
   const currentRequest=++requestId;
   $('#status').textContent='正在加载第 '+target+' 页…';
-  $('#book-rows').innerHTML='';
-  $('#pagination').hidden=true;
+  $('#book-rows').innerHTML='';$('#pagination').hidden=true;
   try{
     const response=await fetch(source.files[target-1]);
     if(!response.ok)throw Error(response.status);
     const data=await response.json();
-    if(currentRequest!==requestId)return;
-    books=data.books;page=target;
-    $('#book-search').value='';
-    renderBooks();
+    if(currentRequest!==requestId||kind==='all')return;
+    books=data.books;page=target;resultCount=source.count;
+    renderBookRows(source.page_size);
+    $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+source.count.toLocaleString()+' 本，按综合评分排序';
     updatePagination();
-  }catch(error){
-    if(currentRequest===requestId)$('#status').textContent='这一页加载失败，请稍后重试。';
-  }
+  }catch(error){if(currentRequest===requestId)$('#status').textContent='这一页加载失败，请稍后重试。'}
 }
 
-function renderBooks(){
-  if(!source)return;
-  const query=$('#book-search').value.trim().toLowerCase();
-  const offset=(page-1)*source.page_size;
-  const matches=books.map((book,index)=>({book,index})).filter(item=>!query||item.book.title.toLowerCase().includes(query)||String(item.book.id).includes(query));
-  $('#book-rows').innerHTML=matches.map(({book,index})=>'<tr><td>'+(offset+index+1)+'</td><td>'+book.id+'</td><td>'+esc(book.title)+'</td><td>'+(book.rating??'—')+'</td><td>'+(book.rating_count==null?'—':book.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(book.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');
-  const filtered=query?'，当前页匹配 '+matches.length+' 本':'';
-  $('#status').textContent='第 '+page+' / '+source.files.length+' 页，本页 '+books.length+' 本'+filtered+'，共 '+source.count.toLocaleString()+' 本，按综合评分排序';
+function renderBookRows(pageSize){
+  const offset=(page-1)*pageSize;
+  $('#book-rows').innerHTML=books.map((book,index)=>'<tr><td>'+(offset+index+1)+'</td><td>'+book.id+'</td><td>'+esc(book.title)+'</td><td>'+(book.rating??'—')+'</td><td>'+(book.rating_count==null?'—':book.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(book.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');
 }
 
 function updatePagination(){
-  const total=source.files.length;
-  $('#pagination').hidden=total<=1;
-  $('#page-number').value=page;
-  $('#page-number').max=total;
-  $('#page-total').textContent='/ '+total+' 页';
-  $('#first-page').disabled=page===1;
-  $('#previous-page').disabled=page===1;
-  $('#next-page').disabled=page===total;
-  $('#last-page').disabled=page===total;
+  $('#pagination').hidden=totalPages<=1;
+  $('#page-number').value=page;$('#page-number').max=totalPages;
+  $('#page-total').textContent='/ '+totalPages+' 页';
+  $('#first-page').disabled=page===1;$('#previous-page').disabled=page===1;
+  $('#next-page').disabled=page===totalPages;$('#last-page').disabled=page===totalPages;
 }
 
+function loadPage(target){if(kind==='all')loadAllBooks(target);else loadSourcePage(target)}
 function goToInputPage(){loadPage($('#page-number').value)}
+"""
+
+
+ALL_BOOKS_WORKER_JS = r"""let booksPromise=null,cacheKey='',matches=[];
+
+async function loadBooks(file){
+  if(!booksPromise){
+    booksPromise=fetch(new URL('../'+file,self.location.href)).then(response=>{
+      if(!response.ok)throw Error(response.status);
+      return response.json();
+    }).then(data=>data.books);
+  }
+  return booksPromise;
+}
+
+self.onmessage=async event=>{
+  const {requestId,file,page,pageSize,query,minRating,minVotes}=event.data;
+  try{
+    const books=await loadBooks(file);
+    const normalizedQuery=String(query||'').trim().toLocaleLowerCase('zh-CN');
+    const key=JSON.stringify([normalizedQuery,minRating,minVotes]);
+    if(key!==cacheKey){
+      matches=[];
+      for(let index=0;index<books.length;index++){
+        const book=books[index],rating=book[2],votes=book[3]??0;
+        const ratingMatches=minRating<=0?true:rating!==null&&rating>=minRating;
+        const textMatches=!normalizedQuery||String(book[0]).includes(normalizedQuery)||String(book[1]).toLocaleLowerCase('zh-CN').includes(normalizedQuery);
+        if(ratingMatches&&votes>=minVotes&&textMatches)matches.push(index);
+      }
+      cacheKey=key;
+    }
+    const pages=Math.max(1,Math.ceil(matches.length/pageSize));
+    const selectedPage=Math.max(1,Math.min(pages,Number(page)||1));
+    const start=(selectedPage-1)*pageSize;
+    const result=matches.slice(start,start+pageSize).map(index=>books[index]);
+    self.postMessage({requestId,page:selectedPage,pages,count:matches.length,books:result});
+  }catch(error){self.postMessage({requestId,error:String(error)})}
+};
 """
 
 

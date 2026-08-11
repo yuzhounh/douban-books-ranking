@@ -1,5 +1,5 @@
 const labels={top250:'Top 250',tag:'标签',doulist:'豆列',series:'丛书'};
-let catalog=null,kind='top250',source=null,books=[],page=1,requestId=0;
+let catalog=null,kind='tag',source=null,books=[],page=1,requestId=0;
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
@@ -10,14 +10,8 @@ fetch('data/catalog.json')
     $('#formula').textContent='综合评分 = '+data.formula;
     $('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');
     for(const name of Object.keys(labels))$('#'+name+'-count').textContent=data.categories[name].length;
-    source=data.categories.top250[0]??null;
-    if(source){
-      $('#source-title').textContent=source.label;
-      renderSources();
-      loadPage(1);
-    }else{
-      renderSources();
-    }
+    renderSources();
+    selectFirstSource();
   })
   .catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');
 
@@ -34,6 +28,7 @@ document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click
   $('#status').textContent='请选择左侧来源';
   $('#pagination').hidden=true;
   renderSources();
+  selectFirstSource();
 }));
 
 $('#source-search').addEventListener('input',renderSources);
@@ -67,6 +62,11 @@ function renderSources(){
     list.appendChild(button);
   }
   if(!matches.length)list.textContent='没有匹配的来源';
+}
+
+function selectFirstSource(){
+  const first=$('#source-list .source-item');
+  if(first)first.click();
 }
 
 async function loadPage(target){

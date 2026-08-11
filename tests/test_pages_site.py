@@ -35,6 +35,12 @@ def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_pat
     assert 'id="all-threshold-controls"' in index_html
     assert index_html.index('id="all-threshold-controls"') > index_html.index('class="books-head"')
     assert "查找榜单" not in index_html
+    assert '<th class="rating-count">评价人数</th>' in index_html
+    app_js = (tmp_path / "site" / "assets" / "app.js").read_text("utf-8")
+    style_css = (tmp_path / "site" / "assets" / "style.css").read_text("utf-8")
+    assert "Number(book.rating).toFixed(1)" in app_js
+    assert 'td class="rating-count"' in app_js
+    assert "th.rating-count,td.rating-count{text-align:right}" in style_css
     assert stats == {
         "generated_at": stats["generated_at"],
         "sources": 4,

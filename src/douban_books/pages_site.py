@@ -11,7 +11,7 @@ from typing import Any, Iterable, Mapping
 from .storage import Database
 
 
-SITE_TITLE = "豆瓣读书排行"
+SITE_TITLE = "豆瓣读书排行榜"
 PAGE_SIZE = 100
 
 
@@ -356,7 +356,7 @@ INDEX_HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="浏览和筛选豆瓣读书公开列表中的全部书籍、标签、豆列、丛书与 Top 250 排行">
-  <title>豆瓣读书排行</title>
+  <title>豆瓣读书排行榜</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>[hidden]{display:none!important}</style>
 </head>
@@ -364,7 +364,7 @@ INDEX_HTML = """<!doctype html>
   <header class="hero">
     <div class="hero-inner">
       <p class="eyebrow">DOUBAN BOOKS ARCHIVE</p>
-      <h1>豆瓣读书排行</h1>
+      <h1>豆瓣读书排行榜</h1>
       <p class="lede">从标签、豆列、丛书与 Top 250 重新发现值得读的书。</p>
       <p class="formula" id="formula">综合评分加载中…</p>
     </div>

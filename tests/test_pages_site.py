@@ -28,6 +28,10 @@ def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_pat
         )
 
     catalog = json.loads((tmp_path / "site" / "data" / "catalog.json").read_text("utf-8"))
+    index_html = (tmp_path / "site" / "index.html").read_text("utf-8")
+    assert catalog["title"] == "豆瓣读书排行榜"
+    assert "<title>豆瓣读书排行榜</title>" in index_html
+    assert "<h1>豆瓣读书排行榜</h1>" in index_html
     assert stats == {
         "generated_at": stats["generated_at"],
         "sources": 4,

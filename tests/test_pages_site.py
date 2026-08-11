@@ -40,6 +40,10 @@ def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_pat
     style_css = (tmp_path / "site" / "assets" / "style.css").read_text("utf-8")
     assert "Number(book.rating).toFixed(1)" in app_js
     assert 'td class="rating-count"' in app_js
+    assert "pageSize=25" in app_js
+    assert 'id="page-size"' in index_html
+    assert '<option value="25" selected>25</option>' in index_html
+    assert ".status-row{display:flex" in style_css
     assert "th.rating-count,td.rating-count{text-align:right;padding-right:24px}" in style_css
     assert stats == {
         "generated_at": stats["generated_at"],

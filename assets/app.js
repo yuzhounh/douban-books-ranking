@@ -1,6 +1,6 @@
 const labels={all:'全部书籍',tag:'标签',doulist:'豆列',series:'丛书',top250:'Top 250'};
 const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名']};
-let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null;
+let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null,pageSize=25;
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
@@ -31,6 +31,7 @@ $('#next-page').addEventListener('click',()=>loadPage(page+1));
 $('#last-page').addEventListener('click',()=>loadPage(totalPages));
 $('#go-page').addEventListener('click',goToInputPage);
 $('#page-number').addEventListener('keydown',event=>{if(event.key==='Enter')goToInputPage()});
+$('#page-size').addEventListener('change',()=>{pageSize=Number($('#page-size').value)||25;loadPage(1)});
 
 function activateKind(nextKind){
   if(!catalog)return;
@@ -96,7 +97,7 @@ function ensureAllWorker(){
     if(data.error){$('#status').textContent='全部书籍索引加载失败，请稍后重试。';return}
     books=data.books.map(item=>({id:item[0],title:item[1],rating:item[2],rating_count:item[3],url:'https://book.douban.com/subject/'+item[0]+'/'}));
     page=data.page;totalPages=data.pages;resultCount=data.count;
-    renderBookRows(catalog.all_books.page_size);
+    renderBookRows(pageSize);
     $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+resultCount.toLocaleString()+' 本，按综合评分排序';
     updatePagination();
   };
@@ -110,23 +111,26 @@ function loadAllBooks(target){
   const currentRequest=++requestId;
   $('#status').textContent='正在筛选全部书籍，首次使用需要加载索引…';
   $('#book-rows').innerHTML='';$('#pagination').hidden=true;
-  ensureAllWorker().postMessage({requestId:currentRequest,file:catalog.all_books.file,page:target,pageSize:catalog.all_books.page_size,query:$('#all-book-search').value.trim(),minRating:rating,minVotes:votes});
+  ensureAllWorker().postMessage({requestId:currentRequest,file:catalog.all_books.file,page:target,pageSize:pageSize,query:$('#all-book-search').value.trim(),minRating:rating,minVotes:votes});
 }
 
 async function loadSourcePage(target){
   if(!source)return;
-  totalPages=source.files.length;
+  totalPages=Math.max(1,Math.ceil(source.count/pageSize));
   target=Math.max(1,Math.min(totalPages,Number(target)||1));
   const currentRequest=++requestId;
   $('#status').textContent='正在加载第 '+target+' 页…';
   $('#book-rows').innerHTML='';$('#pagination').hidden=true;
+  const fileIndex=Math.min(source.files.length-1,Math.floor((target-1)*pageSize/source.page_size));
   try{
-    const response=await fetch(source.files[target-1]);
+    const response=await fetch(source.files[fileIndex]);
     if(!response.ok)throw Error(response.status);
     const data=await response.json();
     if(currentRequest!==requestId||kind==='all')return;
-    books=data.books;page=target;resultCount=source.count;
-    renderBookRows(source.page_size);
+    const start=(target-1)*pageSize-fileIndex*source.page_size;
+    books=data.books.slice(start,start+pageSize);
+    page=target;resultCount=source.count;
+    renderBookRows(pageSize);
     $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+source.count.toLocaleString()+' 本，按综合评分排序';
     updatePagination();
   }catch(error){if(currentRequest===requestId)$('#status').textContent='这一页加载失败，请稍后重试。'}

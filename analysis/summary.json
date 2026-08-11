@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-08-11T10:14:27+08:00",
+  "formula": "(rating - 2.5) * ln(votes)",
+  "books": 338820,
+  "rated_books": 206816,
+  "unrated_books": 132004,
+  "source_counts": {
+    "doulist": 393,
+    "series": 55,
+    "tag": 626,
+    "top250": 1
+  },
+  "rating": {
+    "mean": 8.0724,
+    "median": 8.2,
+    "buckets": {
+      "<6": 3471,
+      "6-6.9": 18353,
+      "7-7.9": 62343,
+      "8-8.9": 89462,
+      ">=9": 33187
+    }
+  },
+  "votes": {
+    "median": 81.0,
+    "buckets": {
+      "0": 0,
+      "1-99": 113752,
+      "100-999": 73774,
+      "1000-9999": 17220,
+      ">=10000": 2070
+    }
+  },
+  "thresholds": {
+    "rating>=9_and_votes>=1000": 3151,
+    "rating>=8.5": 74749
+  },
+  "score": {
+    "median": 24.517,
+    "p90": 39.5271,
+    "p99": 55.3231
+  },
+  "top_10": [
+    {
+      "douban_id": 4913064,
+      "title": "活着",
+      "rating": 9.4,
+      "votes": 922044,
+      "score": 94.767
+    },
+    {
+      "douban_id": 1007305,
+      "title": "红楼梦",
+      "rating": 9.7,
+      "votes": 467206,
+      "score": 93.9926
+    },
+    {
+      "douban_id": 1084336,
+      "title": "小王子",
+      "rating": 9.1,
+      "votes": 801491,
+      "score": 89.7219
+    },
+    {
+      "douban_id": 6082808,
+      "title": "百年孤独",
+      "rating": 9.3,
+      "votes": 478057,
+      "score": 88.9269
+    },
+    {
+      "douban_id": 10554308,
+      "title": "白夜行",
+      "rating": 9.2,
+      "votes": 539234,
+      "score": 88.426
+    },
+    {
+      "douban_id": 4820710,
+      "title": "1984",
+      "rating": 9.4,
+      "votes": 313879,
+      "score": 87.3317
+    },
+    {
+      "douban_id": 1770782,
+      "title": "追风筝的人",
+      "rating": 8.9,
+      "votes": 828974,
+      "score": 87.2188
+    },
+    {
+      "douban_id": 27614904,
+      "title": "房思琪的初恋乐园",
+      "rating": 9.2,
+      "votes": 426409,
+      "score": 86.8531
+    },
+    {
+      "douban_id": 3259440,
+      "title": "白夜行",
+      "rating": 9.1,
+      "votes": 511589,
+      "score": 86.7588
+    },
+    {
+      "douban_id": 3066477,
+      "title": "三体Ⅱ",
+      "rating": 9.3,
+      "votes": 318101,
+      "score": 86.1568
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 const labels={all:'全部书籍',tag:'标签',doulist:'豆列',series:'丛书',top250:'Top 250'};
 const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名']};
-let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null,pageSize=25;
+let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null,pageSize=50;
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
@@ -31,7 +31,7 @@ $('#next-page').addEventListener('click',()=>loadPage(page+1));
 $('#last-page').addEventListener('click',()=>loadPage(totalPages));
 $('#go-page').addEventListener('click',goToInputPage);
 $('#page-number').addEventListener('keydown',event=>{if(event.key==='Enter')goToInputPage()});
-$('#page-size').addEventListener('change',()=>{pageSize=Number($('#page-size').value)||25;loadPage(1)});
+$('#page-size').addEventListener('change',()=>{pageSize=Number($('#page-size').value)||50;loadPage(1)});
 
 function activateKind(nextKind){
   if(!catalog)return;

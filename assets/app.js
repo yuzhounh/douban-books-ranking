@@ -1,5 +1,5 @@
 const labels={all:'全部书籍',tag:'标签',doulist:'豆列',series:'丛书',top250:'Top 250'};
-const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名'],top250:['查找榜单','输入榜单名']};
+const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名']};
 let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null;
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -41,15 +41,20 @@ function activateKind(nextKind){
   $('#pagination').hidden=true;
   const isAll=kind==='all';
   $('#all-controls').hidden=!isAll;
+  $('#all-threshold-controls').hidden=!isAll;
   $('#source-controls').hidden=isAll;
   if(isAll){
     $('#source-title').textContent='全部书籍';
     loadAllBooks(1);
     return;
   }
-  const [label,placeholder]=sourcePrompts[kind];
-  $('#source-search-label').textContent=label;
-  $('#source-search').placeholder=placeholder;
+  const hasSourceSearch=kind!=='top250';
+  $('#source-search-fields').hidden=!hasSourceSearch;
+  if(hasSourceSearch){
+    const [label,placeholder]=sourcePrompts[kind];
+    $('#source-search-label').textContent=label;
+    $('#source-search').placeholder=placeholder;
+  }
   $('#source-search').value='';
   $('#source-title').textContent='请选择一个来源';
   $('#status').textContent='请选择左侧来源';

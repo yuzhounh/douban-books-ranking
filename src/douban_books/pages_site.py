@@ -382,24 +382,30 @@ INDEX_HTML = """<!doctype html>
         <div id="all-controls" class="all-controls">
           <label for="all-book-search">搜索全部书籍</label>
           <input id="all-book-search" type="search" placeholder="输入书名或豆瓣 ID" autocomplete="off">
-          <label for="min-rating">最低评分</label>
-          <input id="min-rating" type="number" min="0" max="10" step="0.1" value="0.0">
-          <label for="min-votes">最低评价人数</label>
-          <input id="min-votes" type="number" min="0" step="1" value="0">
-          <div class="filter-actions">
-            <button id="apply-all-filters" class="primary-action">应用筛选</button>
-            <button id="reset-all-filters">重置</button>
-          </div>
         </div>
         <div id="source-controls" hidden>
-          <label id="source-search-label" for="source-search">查找来源</label>
-          <input id="source-search" type="search" placeholder="输入来源名" autocomplete="off">
+          <div id="source-search-fields">
+            <label id="source-search-label" for="source-search">查找来源</label>
+            <input id="source-search" type="search" placeholder="输入来源名" autocomplete="off">
+          </div>
           <div id="source-list" class="source-list" aria-live="polite"></div>
         </div>
       </aside>
       <section class="books-panel">
         <div class="books-head">
           <div><p class="section-label" id="kind-label">全部书籍</p><h2 id="source-title">全部书籍</h2></div>
+          <div id="all-threshold-controls" class="threshold-controls">
+            <label for="min-rating">最低评分
+              <input id="min-rating" type="number" min="0" max="10" step="0.1" value="0.0">
+            </label>
+            <label for="min-votes">最低评价人数
+              <input id="min-votes" type="number" min="0" step="1" value="0">
+            </label>
+            <div class="filter-actions">
+              <button id="apply-all-filters" class="primary-action">应用筛选</button>
+              <button id="reset-all-filters">重置</button>
+            </div>
+          </div>
         </div>
         <p id="status" class="status">正在加载全部书籍索引…</p>
         <div class="table-wrap">
@@ -436,7 +442,7 @@ STYLE_CSS = r""":root{--ink:#14221b;--muted:#66736c;--paper:#f5f1e8;--card:#fffd
 PAGINATION_CSS = r""".pagination{align-items:center;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:24px 0 4px}.pagination button{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--green);cursor:pointer;font-weight:700;padding:9px 12px}.pagination button:hover:not(:disabled){background:#e4efe9;border-color:var(--green)}.pagination button:disabled{color:#a6aea9;cursor:not-allowed}.pagination label,.pagination span{color:var(--muted);font-size:13px}.pagination input{border:1px solid var(--line);border-radius:7px;font:inherit;padding:7px;text-align:center;width:64px}@media(max-width:600px){.pagination{justify-content:flex-start}.pagination button{padding:8px 10px}.pagination #first-page,.pagination #last-page{display:none}}"""
 
 
-FILTER_CSS = r""".all-controls{display:grid;gap:10px}.all-controls label{margin-top:6px}.filter-actions{display:flex;gap:8px;margin-top:8px}.filter-actions button{border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--green);cursor:pointer;font:inherit;font-weight:700;padding:10px 12px}.filter-actions button:hover{background:#e4efe9;border-color:var(--green)}.filter-actions .primary-action{background:var(--green);border-color:var(--green);color:#fff}.filter-actions .primary-action:hover{background:var(--green2)}"""
+FILTER_CSS = r""".all-controls{display:grid;gap:10px}.all-controls label{margin-top:6px}.threshold-controls{align-items:end;display:flex;gap:10px}.threshold-controls label{color:var(--muted);font-size:12px;font-weight:700}.threshold-controls input{background:#fff;border:1px solid var(--line);border-radius:9px;display:block;font:inherit;margin-top:8px;outline:none;padding:9px 10px;width:92px}.threshold-controls label:nth-child(2) input{width:116px}.threshold-controls input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(23,107,77,.1)}.filter-actions{display:flex;gap:8px}.filter-actions button{border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--green);cursor:pointer;font:inherit;font-weight:700;padding:9px 12px;white-space:nowrap}.filter-actions button:hover{background:#e4efe9;border-color:var(--green)}.filter-actions .primary-action{background:var(--green);border-color:var(--green);color:#fff}.filter-actions .primary-action:hover{background:var(--green2)}@media(max-width:1000px){.books-head{align-items:stretch;flex-direction:column}.threshold-controls{flex-wrap:wrap}}@media(max-width:600px){.threshold-controls{align-items:stretch;display:grid;grid-template-columns:1fr 1fr}.threshold-controls input,.threshold-controls label:nth-child(2) input{width:100%}.filter-actions{grid-column:1/-1}.filter-actions button{flex:1}}"""
 
 
 APP_JS = r"""const PAGE_SIZE=100;const labels={tag:'标签',doulist:'豆列',series:'丛书'};let catalog=null,kind='tag',books=[],shown=0;const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));fetch('data/catalog.json').then(r=>{if(!r.ok)throw Error(r.status);return r.json()}).then(data=>{catalog=data;$('#formula').textContent='综合评分 = '+data.formula;$('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');for(const k of Object.keys(labels))$('#'+k+'-count').textContent=data.categories[k].length;renderSources();}).catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');kind=b.dataset.kind;books=[];shown=0;$('#kind-label').textContent=labels[kind];$('#source-title').textContent='请选择一个来源';$('#source-search').value='';$('#book-search').value='';$('#book-rows').innerHTML='';$('#status').textContent='请选择左侧来源';$('#load-more').hidden=true;renderSources();}));$('#source-search').addEventListener('input',renderSources);$('#book-search').addEventListener('input',()=>{shown=0;renderBooks();});$('#load-more').addEventListener('click',()=>{shown+=PAGE_SIZE;renderBooks(false)});function renderSources(){if(!catalog)return;const q=$('#source-search').value.trim().toLowerCase();const list=catalog.categories[kind].filter(x=>(x.label+' '+x.key).toLowerCase().includes(q));$('#source-list').innerHTML='';for(const src of list){const b=document.createElement('button');b.className='source-item';b.innerHTML='<span>'+esc(src.label)+'</span><span>'+src.count.toLocaleString()+'</span>';b.addEventListener('click',()=>loadSource(src,b));$('#source-list').appendChild(b)}if(!list.length)$('#source-list').textContent='没有匹配的来源';}async function loadSource(src,button){document.querySelectorAll('.source-item').forEach(x=>x.classList.remove('active'));button.classList.add('active');$('#source-title').textContent=src.label;$('#status').textContent='正在加载…';$('#book-rows').innerHTML='';$('#load-more').hidden=true;try{const r=await fetch(src.file);if(!r.ok)throw Error(r.status);const data=await r.json();books=data.books;shown=0;$('#book-search').value='';renderBooks()}catch(e){$('#status').textContent='数据加载失败，请稍后重试。'}}function renderBooks(reset=true){const q=$('#book-search').value.trim().toLowerCase();const filtered=books.filter(b=>!q||b.title.toLowerCase().includes(q)||String(b.id).includes(q));if(reset)shown=PAGE_SIZE;const slice=filtered.slice(0,shown);$('#book-rows').innerHTML=slice.map((b,i)=>'<tr><td>'+(i+1)+'</td><td>'+b.id+'</td><td>'+esc(b.title)+'</td><td>'+(b.rating??'—')+'</td><td>'+(b.rating_count==null?'—':b.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(b.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');$('#status').textContent='共 '+filtered.length.toLocaleString()+' 本，按综合评分排序';$('#load-more').hidden=shown>=filtered.length;}"""
@@ -444,7 +450,7 @@ APP_JS = r"""const PAGE_SIZE=100;const labels={tag:'标签',doulist:'豆列',ser
 
 # The paginated implementation supersedes the original single-file client above.
 APP_JS = r"""const labels={all:'全部书籍',tag:'标签',doulist:'豆列',series:'丛书',top250:'Top 250'};
-const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名'],top250:['查找榜单','输入榜单名']};
+const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名']};
 let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null;
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -486,15 +492,20 @@ function activateKind(nextKind){
   $('#pagination').hidden=true;
   const isAll=kind==='all';
   $('#all-controls').hidden=!isAll;
+  $('#all-threshold-controls').hidden=!isAll;
   $('#source-controls').hidden=isAll;
   if(isAll){
     $('#source-title').textContent='全部书籍';
     loadAllBooks(1);
     return;
   }
-  const [label,placeholder]=sourcePrompts[kind];
-  $('#source-search-label').textContent=label;
-  $('#source-search').placeholder=placeholder;
+  const hasSourceSearch=kind!=='top250';
+  $('#source-search-fields').hidden=!hasSourceSearch;
+  if(hasSourceSearch){
+    const [label,placeholder]=sourcePrompts[kind];
+    $('#source-search-label').textContent=label;
+    $('#source-search').placeholder=placeholder;
+  }
   $('#source-search').value='';
   $('#source-title').textContent='请选择一个来源';
   $('#status').textContent='请选择左侧来源';

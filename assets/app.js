@@ -134,7 +134,7 @@ async function loadSourcePage(target){
 
 function renderBookRows(pageSize){
   const offset=(page-1)*pageSize;
-  $('#book-rows').innerHTML=books.map((book,index)=>'<tr><td>'+(offset+index+1)+'</td><td>'+book.id+'</td><td>'+esc(book.title)+'</td><td>'+(book.rating??'—')+'</td><td>'+(book.rating_count==null?'—':book.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(book.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');
+  $('#book-rows').innerHTML=books.map((book,index)=>'<tr><td>'+(offset+index+1)+'</td><td>'+book.id+'</td><td>'+esc(book.title)+'</td><td>'+(book.rating==null?'—':Number(book.rating).toFixed(1))+'</td><td class="rating-count">'+(book.rating_count==null?'—':book.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(book.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');
 }
 
 function updatePagination(){

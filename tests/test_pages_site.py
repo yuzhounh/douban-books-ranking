@@ -131,3 +131,4 @@ def test_build_pages_site_filters_and_sorts_source_lists(tmp_path: Path) -> None
     assert catalog["formula"] == "(评分 - 2.5) × ln(评价人数)"
     index = (tmp_path / "site" / "index.html").read_text("utf-8")
     assert index.index('data-kind="tag"') < index.index('data-kind="top250"')
+    assert "从标签、豆列、丛书与 Top 250 重新发现值得读的书。" in index

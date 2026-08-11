@@ -377,7 +377,10 @@ INDEX_HTML = """<!doctype html>
       </section>
     </section>
   </main>
-  <footer><span id="generated-at"></span><span>数据仅供研究与个人阅读参考</span></footer>
+  <footer>
+    <span>数据来自豆瓣公开的 Top 250、标签筛选页、豆列与丛书页面，仅供学习、研究与索引。评分及评价人数可能随时间变化。 <a href="https://github.com/yuzhounh/douban-books-ranking" target="_blank" rel="noopener">查看源代码</a></span>
+    <span id="generated-at"></span>
+  </footer>
   <script src="assets/app.js" defer></script>
 </body>
 </html>

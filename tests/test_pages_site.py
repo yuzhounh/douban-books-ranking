@@ -132,3 +132,6 @@ def test_build_pages_site_filters_and_sorts_source_lists(tmp_path: Path) -> None
     index = (tmp_path / "site" / "index.html").read_text("utf-8")
     assert index.index('data-kind="tag"') < index.index('data-kind="top250"')
     assert "从标签、豆列、丛书与 Top 250 重新发现值得读的书。" in index
+    assert "评分及评价人数可能随时间变化" in index
+    assert "https://github.com/yuzhounh/douban-books-ranking" in index
+    assert 'id="generated-at"' in index

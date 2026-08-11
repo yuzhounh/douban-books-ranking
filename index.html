@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="浏览豆瓣读书 Top 250、标签、豆列和丛书排行">
+  <title>豆瓣读书排行</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>[hidden]{display:none!important}</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">DOUBAN BOOKS ARCHIVE</p>
+      <h1>豆瓣读书排行</h1>
+      <p class="lede">从 Top 250、标签、豆列与丛书重新发现值得读的书。</p>
+      <p class="formula" id="formula">综合评分加载中…</p>
+    </div>
+  </header>
+  <main>
+    <nav class="tabs" aria-label="来源类别">
+      <button class="tab active" data-kind="top250">Top 250 <span id="top250-count"></span></button>
+      <button class="tab" data-kind="tag">标签 <span id="tag-count"></span></button>
+      <button class="tab" data-kind="doulist">豆列 <span id="doulist-count"></span></button>
+      <button class="tab" data-kind="series">丛书 <span id="series-count"></span></button>
+    </nav>
+    <section class="workspace">
+      <aside class="source-panel">
+        <label for="source-search">查找来源</label>
+        <input id="source-search" type="search" placeholder="输入榜单、标签、豆列或丛书名" autocomplete="off">
+        <div id="source-list" class="source-list" aria-live="polite"></div>
+      </aside>
+      <section class="books-panel">
+        <div class="books-head">
+          <div><p class="section-label" id="kind-label">Top 250</p><h2 id="source-title">请选择一个来源</h2></div>
+          <label class="book-search">筛选当前页<input id="book-search" type="search" placeholder="书名或豆瓣 ID" autocomplete="off"></label>
+        </div>
+        <p id="status" class="status">请选择左侧来源</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>ID</th><th>书名</th><th>评分</th><th>评价人数</th><th>链接</th></tr></thead>
+            <tbody id="book-rows"></tbody>
+          </table>
+        </div>
+        <nav id="pagination" class="pagination" aria-label="书籍分页" hidden>
+          <button id="first-page" aria-label="第一页">首页</button>
+          <button id="previous-page" aria-label="上一页">上一页</button>
+          <label>第 <input id="page-number" type="number" min="1" value="1"> 页</label>
+          <span id="page-total">/ 1 页</span>
+          <button id="go-page">跳转</button>
+          <button id="next-page" aria-label="下一页">下一页</button>
+          <button id="last-page" aria-label="最后一页">末页</button>
+        </nav>
+      </section>
+    </section>
+  </main>
+  <footer><span id="generated-at"></span><span>数据仅供研究与个人阅读参考</span></footer>
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

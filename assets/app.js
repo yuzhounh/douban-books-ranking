@@ -7,7 +7,7 @@ fetch('data/catalog.json')
   .then(response=>{if(!response.ok)throw Error(response.status);return response.json()})
   .then(data=>{
     catalog=data;
-    $('#formula').textContent='其他来源综合评分 = '+data.formula+'；Top 250 保留官方名次';
+    $('#formula').textContent='综合评分 = '+data.formula;
     $('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');
     for(const name of Object.keys(labels))$('#'+name+'-count').textContent=data.categories[name].length;
     source=data.categories.top250[0]??null;
@@ -98,8 +98,7 @@ function renderBooks(){
   const matches=books.map((book,index)=>({book,index})).filter(item=>!query||item.book.title.toLowerCase().includes(query)||String(item.book.id).includes(query));
   $('#book-rows').innerHTML=matches.map(({book,index})=>'<tr><td>'+(offset+index+1)+'</td><td>'+book.id+'</td><td>'+esc(book.title)+'</td><td>'+(book.rating??'—')+'</td><td>'+(book.rating_count==null?'—':book.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(book.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');
   const filtered=query?'，当前页匹配 '+matches.length+' 本':'';
-  const ordering=source.order==='official'?'，按豆瓣官方名次':'，按综合评分排序';
-  $('#status').textContent='第 '+page+' / '+source.files.length+' 页，本页 '+books.length+' 本'+filtered+'，共 '+source.count.toLocaleString()+' 本'+ordering;
+  $('#status').textContent='第 '+page+' / '+source.files.length+' 页，本页 '+books.length+' 本'+filtered+'，共 '+source.count.toLocaleString()+' 本，按综合评分排序';
 }
 
 function updatePagination(){

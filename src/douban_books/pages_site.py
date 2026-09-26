@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 from typing import Any, Iterable, Mapping
 
+from .ranking import integrated_score
 from .storage import Database
 
 
@@ -153,6 +154,8 @@ def _site_readme(
     generated_date = generated_at[:10]
     return f"""# 豆瓣读书综合排行榜
 
+[![Code License: MIT](https://img.shields.io/badge/Code%20License-MIT-D4A017.svg)](LICENSE)
+
 从豆瓣读书公开的 Top 250、标签、豆列与丛书列表页采集书籍信息，按豆瓣 subject ID 去重，并以评分和评价人数计算综合排名。
 
 > 使用前请确认你的使用方式符合豆瓣网站条款与当地法律。本项目只处理公开列表页，不绕过验证码或访问控制；遇到风控提示时应停止请求。
@@ -163,9 +166,9 @@ def _site_readme(
 
 页面首先提供“全部书籍”全库搜索，可按书名、豆瓣 ID、最低评分和最低评价人数筛选；其后按“标签、豆列、丛书、Top 250”四类来源展示综合排行榜。各来源支持名称搜索和分页浏览，点击“豆瓣”可打开对应书籍页面。
 
-## 当前数据规模
+## 数据快照
 
-最近一次生成于 **{generated_date}**：
+本仓库记录的数据快照生成于 **{generated_date}**。以下数量对应这一快照，不代表豆瓣当前完整书目：
 
 - 去重书籍：**{book_count:,} 本**
 - 标签：**{len(categories['tag']):,} 个**，仅保留不少于 100 本书的标签
@@ -181,7 +184,7 @@ def _site_readme(
 综合评分 = (评分 - {delta:g}) × ln(评价人数)
 ```
 
-其中 `ln` 是自然对数。公式同时考虑书籍评分和评价样本量，并通过对数降低超高评价人数的边际影响；无评分记录排在最后。
+其中 `ln` 是自然对数。公式同时考虑书籍评分和评价样本量，并通过对数降低超高评价人数的边际影响；无评分记录排在最后。对于有评分的记录，实现中评价人数缺失或不大于 0 时综合分记为 0，避免计算 `ln(0)`。
 
 ## 数据内容
 
@@ -220,6 +223,8 @@ SQLite 工作数据库、HTML 缓存、运行日志和备份不进入仓库；�
 需要 Python 3.10 或更高版本：
 
 ```powershell
+git clone https://github.com/yuzhounh/douban-books-ranking.git
+cd douban-books-ranking
 python -m venv .venv
 .venv\\Scripts\\Activate.ps1
 python -m pip install -e ".[dev]"
@@ -244,7 +249,7 @@ python -m pytest
 
 ## 更新与发布
 
-在主项目完成抓取后重新生成并发布：
+在主项目完成抓取后，使用已有书籍记录的工作数据库重新生成并发布。默认读取当前工作目录下的 `data/douban_books.sqlite3`；仓库中的静态 JSON 不会自动导入数据库，数据库不存在时会创建空库。
 
 ```powershell
 python -m douban_books finalize
@@ -254,13 +259,27 @@ python -m douban_books publish-pages `
   --repository https://github.com/yuzhounh/douban-books-ranking.git
 ```
 
-发布命令只更新本仓库，不会修改 `yuzhounh.github.io` 仓库。
+发布命令会提交并推送到目标仓库的 `main` 分支；发布使用的 checkout 目录必须位于 `main` 分支，请先妥善保存其中的本地修改。上述命令只更新本仓库，不会修改 `yuzhounh.github.io` 仓库。
 
 ## 说明
 
 - 数据来源于公开页面，仅供研究、数据分析和个人阅读参考。
 - 评分、评价人数及榜单内容会随豆瓣页面变化，本站不是豆瓣官方产品。
 - 项目不包含验证码破解、账号池、登录 Cookie 获取、代理轮换或其他风控规避功能。
+
+## 相关项目
+
+- [Douban-books-2020](https://github.com/yuzhounh/Douban-books-2020): 2020 年读书结果，现提供便于表格软件浏览的 UTF-8 BOM CSV。
+- [Douban-books-crawler-2020](https://github.com/yuzhounh/Douban-books-crawler-2020): 对应 2020 年结果的 Python 采集与 MATLAB 整理代码。
+- [Douban-books-2017](https://github.com/yuzhounh/Douban-books-2017): 2017 年读书结果快照，记录 129,193 本书。
+- [Douban-books-results](https://github.com/yuzhounh/Douban-books-results): 更早的读书结果快照，记录 34,636 本书。
+- [douban-movies-ranking](https://github.com/yuzhounh/douban-movies-ranking): 采用相同评分思路的影视姊妹项目，数据来源和内容与图书独立。
+
+历史结果与当前项目的采集时间、来源和整理方式不同；上述链接用于了解项目演进，不表示当前代码依赖旧仓库。
+
+## 许可证
+
+代码采用 [MIT 许可证](LICENSE)。MIT 授权范围为代码；第三方数据的权利归原平台和权利人，具体说明见 [LICENSE 中的数据声明](LICENSE)。
 """
 
 
@@ -319,10 +338,15 @@ def _iter_sources(database: Database) -> Iterable[tuple[str, str, str, list[Mapp
 
 def _rank(rows: Iterable[Mapping[str, Any]], delta: float) -> list[Mapping[str, Any]]:
     def key(row: Mapping[str, Any]) -> tuple[float, float, int, int]:
-        rating = float(row["rating"]) if row["rating"] is not None else -1.0
+        rating = float(row["rating"]) if row["rating"] is not None else None
         votes = int(row["votes"]) if row["votes"] is not None else 0
-        score = (rating - delta) * math.log(votes) if rating >= 0 and votes > 0 else float("-inf")
-        return score, rating, votes, -int(row["douban_id"])
+        score = integrated_score(rating, votes, delta)
+        return (
+            score if score is not None else float("-inf"),
+            rating if rating is not None else -1.0,
+            votes,
+            -int(row["douban_id"]),
+        )
 
     return sorted(rows, key=key, reverse=True)
 

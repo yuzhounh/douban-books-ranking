@@ -53,12 +53,15 @@ def publish_pages(
         origin = _git(checkout_dir, "remote", "get-url", "origin").strip().rstrip("/")
         if _normalise_remote(origin) != _normalise_remote(repository):
             raise ValueError(f"发布目录指向了错误仓库: {origin}")
+        branch = _git(checkout_dir, "branch", "--show-current").strip()
+        if branch != "main":
+            raise ValueError(f"发布目录必须位于 main 分支，当前为 {branch or 'detached HEAD'}")
         _git(checkout_dir, "pull", "--ff-only", "origin", "main")
     else:
         if checkout_dir.exists() and any(checkout_dir.iterdir()):
             raise ValueError(f"发布目录非空且不是 Git 仓库: {checkout_dir}")
         checkout_dir.parent.mkdir(parents=True, exist_ok=True)
-        _run(["git", "clone", repository, str(checkout_dir)])
+        _run(["git", "clone", "--branch", "main", repository, str(checkout_dir)])
 
     for relative in MANAGED_PATHS:
         source = site_dir / relative

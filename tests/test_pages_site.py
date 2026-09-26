@@ -1,8 +1,11 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from douban_books.models import BookListing, SourceSpec
-from douban_books.pages_site import build_pages_site
+from douban_books.pages_site import _rank, build_pages_site
+from douban_books.ranking import rank_books
 from douban_books.storage import Database
 
 
@@ -74,10 +77,15 @@ def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_pat
     assert (tmp_path / "site" / "assets" / "all-books-worker.js").exists()
     assert (tmp_path / "site" / ".github" / "workflows" / "pages.yml").exists()
     readme = (tmp_path / "site" / "README.md").read_text("utf-8")
-    assert readme.index("## 在线排行榜") < readme.index("## 当前数据规模")
+    assert readme.index("## 在线排行榜") < readme.index("## 数据快照")
     assert "https://yuzhounh.github.io/douban-books-ranking/" in readme[:1000]
     assert "### <https://yuzhounh.github.io" not in readme
     assert "src/douban_books/" in readme
+    assert "git clone https://github.com/yuzhounh/douban-books-ranking.git" in readme
+    assert "cd douban-books-ranking" in readme
+    assert "## 相关项目" in readme and "Douban-books-2020" in readme
+    assert "[MIT 许可证](LICENSE)" in readme
+    assert "checkout 目录必须位于 `main` 分支" in readme
     assert (tmp_path / "site" / ".gitignore").exists()
     style = (tmp_path / "site" / "assets" / "style.css").read_text("utf-8")
     assert ".source-list{margin-top:16px;max-height:1200px" in style
@@ -160,3 +168,15 @@ def test_build_pages_site_filters_and_sorts_source_lists(tmp_path: Path) -> None
     assert "https://github.com/yuzhounh/douban-books-ranking" in index
     assert 'id="generated-at"' in index
     assert 'id="book-search"' not in index
+
+
+@pytest.mark.parametrize("votes", [None, 0, -1])
+def test_pages_ranking_matches_export_for_missing_or_nonpositive_votes(votes) -> None:
+    rows = [
+        {"douban_id": 1, "rating": 2.0, "votes": 100},
+        {"douban_id": 2, "rating": 8.0, "votes": votes},
+        {"douban_id": 3, "rating": None, "votes": 100},
+    ]
+    expected = [row["douban_id"] for row in rank_books(rows)]
+    assert expected == [2, 1, 3]
+    assert [row["douban_id"] for row in _rank(rows, 2.5)] == expected

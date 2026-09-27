@@ -8,7 +8,7 @@
 
 ## 在线排行榜
 
-在线展示页面：<https://yuzhounh.github.io/douban-books-ranking/>
+在线展示页面：<https://douban-books-ranking.pages.dev/>
 
 页面首先提供“全部书籍”全库搜索，可按书名、豆瓣 ID、最低评分和最低评价人数筛选；其后按“标签、豆列、丛书、Top 250”四类来源展示综合排行榜。各来源支持名称搜索和分页浏览，点击“豆瓣”可打开对应书籍页面。
 

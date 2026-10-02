@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from douban_books import pages_site
 from douban_books.models import BookListing, SourceSpec
 from douban_books.pages_site import _rank, build_pages_site
 from douban_books.ranking import rank_books
@@ -39,6 +40,8 @@ def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_pat
     assert index_html.index('id="all-threshold-controls"') > index_html.index('class="books-head"')
     assert "查找榜单" not in index_html
     assert '<th class="rating-count">评价人数</th>' in index_html
+    assert 'href="assets/mobile.css"' in index_html
+    assert (tmp_path / "site" / "assets" / "mobile.css").read_text("utf-8") == pages_site.MOBILE_CSS
     app_js = (tmp_path / "site" / "assets" / "app.js").read_text("utf-8")
     style_css = (tmp_path / "site" / "assets" / "style.css").read_text("utf-8")
     assert "Number(book.rating).toFixed(1)" in app_js

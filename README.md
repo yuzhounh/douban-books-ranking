@@ -1,6 +1,16 @@
-# 豆瓣读书综合排行榜
+# Douban Books Ranking · 豆瓣读书排行
 
-[![Code License: MIT](https://img.shields.io/badge/Code%20License-MIT-D4A017.svg)](LICENSE)
+> 汇集豆瓣标签、豆列与丛书，检索书籍并浏览综合排行。
+
+<p>
+  <a href="https://douban-books-ranking.pages.dev/"><img src="https://img.shields.io/badge/Website-Cloudflare%20Pages-f38020?style=flat&amp;logo=cloudflare&amp;logoColor=white" alt="Website: Cloudflare Pages"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Code%20license-MIT-f59e0b?style=flat" alt="Code license: MIT"></a>
+  <img src="https://img.shields.io/badge/Python-3-3776ab?style=flat&amp;logo=python&amp;logoColor=white" alt="Python: 3">
+</p>
+
+<p>
+  <a href="https://douban-books-ranking.pages.dev/">在线体验</a> · <a href="#安装与抓取">快速开始</a> · <a href="LICENSE">开源协议</a>
+</p>
 
 从豆瓣读书公开的 Top 250、标签、豆列与丛书列表页采集书籍信息，按豆瓣 subject ID 去重，并以评分和评价人数计算综合排名。
 
@@ -123,6 +133,6 @@ python -m douban_books publish-pages `
 
 历史结果与当前项目的采集时间、来源和整理方式不同；上述链接用于了解项目演进，不表示当前代码依赖旧仓库。
 
-## 许可证
+## 开源协议
 
 代码采用 [MIT 许可证](LICENSE)。MIT 授权范围为代码；第三方数据的权利归原平台和权利人，具体说明见 [LICENSE 中的数据声明](LICENSE)。

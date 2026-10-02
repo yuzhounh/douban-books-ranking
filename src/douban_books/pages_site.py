@@ -117,6 +117,7 @@ def build_pages_site(
     (out_dir / "assets" / "style.css").write_text(
         STYLE_CSS + PAGINATION_CSS + FILTER_CSS, encoding="utf-8", newline="\n"
     )
+    (out_dir / "assets" / "mobile.css").write_text(MOBILE_CSS, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "app.js").write_text(APP_JS, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "all-books-worker.js").write_text(
         ALL_BOOKS_WORKER_JS, encoding="utf-8", newline="\n"
@@ -374,6 +375,31 @@ def _write_json(path: Path, payload: Any) -> None:
     )
 
 
+MOBILE_CSS = """@media (max-width: 720px) {
+  .workspace, .tabs { padding-inline: 12px; }
+  input, select, .page-size-control select, .threshold-controls input { min-height: 44px; font-size: 16px; }
+  button { min-height: 44px; }
+  .table-wrap { overflow: visible; }
+  table, tbody { display: block; width: 100%; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  td { min-width: 0 !important; padding: 0; border: 0; overflow-wrap: anywhere; }
+  td:nth-child(3) { grid-column: 1 / -1; grid-row: 1; }
+  td:nth-child(1) { grid-column: 1; grid-row: 2; color: var(--muted); }
+  td:nth-child(1)::before { content: '#'; }
+  td:nth-child(4) { grid-column: 2; grid-row: 2; }
+  td:nth-child(4)::before { content: '评分 '; color: var(--muted); }
+  td.rating-count { grid-column: 3; grid-row: 2; padding: 0; }
+  td.rating-count::after { content: ' 人评价'; color: var(--muted); font-size: 12px; }
+  td:nth-child(2) { grid-column: 1 / 3; grid-row: 3; align-self: center; font-size: 12px; color: var(--muted); }
+  td:nth-child(2)::before { content: 'ID '; }
+  td:nth-child(6) { grid-column: 3; grid-row: 3; }
+  td:nth-child(6) a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+  td[colspan] { grid-column: 1 / -1; padding: 24px 0; }
+  .pagination input { min-height: 44px; font-size: 16px; }
+}
+"""
+
 INDEX_HTML = """<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -382,6 +408,7 @@ INDEX_HTML = """<!doctype html>
   <meta name="description" content="浏览和筛选豆瓣读书公开列表中的全部书籍、标签、豆列、丛书与 Top 250 排行">
   <title>豆瓣读书排行榜</title>
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/mobile.css">
   <style>[hidden]{display:none!important}</style>
 </head>
 <body>

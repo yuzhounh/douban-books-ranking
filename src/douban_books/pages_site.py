@@ -398,6 +398,12 @@ MOBILE_CSS = """@media (max-width: 720px) {
   td[colspan] { grid-column: 1 / -1; padding: 24px 0; }
   .pagination input { min-height: 44px; font-size: 16px; }
 }
+
+@media (min-width: 744px) and (min-height: 600px) and (pointer: coarse) {
+  button, input, select { min-height: 44px; }
+  input, select { font-size: 16px; }
+  .source-item span:first-child { min-width: 0; overflow-wrap: anywhere; }
+}
 """
 
 INDEX_HTML = """<!doctype html>

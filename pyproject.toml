@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "douban-books-crawler"
-version = "1.0.0"
+version = "1.0.1"
 description = "从豆瓣 Top 250、标签、豆列和丛书列表页采集书籍公开信息并排序"
 readme = "README.md"
 requires-python = ">=3.10"

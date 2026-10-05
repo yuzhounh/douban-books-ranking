@@ -38,6 +38,7 @@ function activateKind(nextKind){
   kind=nextKind;source=null;books=[];page=1;totalPages=1;resultCount=0;requestId++;
   document.querySelectorAll('.tab').forEach(item=>item.classList.toggle('active',item.dataset.kind===kind));
   $('#kind-label').textContent=labels[kind];
+  updateMobileCategoryLabel();
   $('#book-rows').innerHTML='';
   $('#pagination').hidden=true;
   const isAll=kind==='all';
@@ -79,7 +80,11 @@ function renderSources(){
       document.querySelectorAll('.source-item').forEach(node=>{node.classList.remove('active');node.setAttribute('aria-pressed','false')});
       button.classList.add('active');button.setAttribute('aria-pressed','true');
       $('#source-title').textContent=item.label;
+      updateMobileCategoryLabel(item.label);
       loadSourcePage(1);
+      if(window.innerWidth<=800&&typeof closeSwitchCategoryModal==='function'){
+        closeSwitchCategoryModal();
+      }
     });
     list.appendChild(button);
   }
@@ -151,3 +156,208 @@ function updatePagination(){
 
 function loadPage(target){if(kind==='all')loadAllBooks(target);else loadSourcePage(target)}
 function goToInputPage(){loadPage($('#page-number').value)}
+
+
+// ---- 主题、抽屉、切类弹窗控制器 ----
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
+const drawerLayer = document.getElementById('mobile-drawer-layer');
+const drawerToggle = document.getElementById('mobile-drawer-toggle');
+const drawerClose = document.getElementById('mobile-drawer-close');
+const drawerBackdrop = document.getElementById('mobile-drawer-backdrop');
+
+const switchCategoryModal = document.getElementById('switch-category-modal');
+const closeSwitchCategoryModalBtn = document.getElementById('closeSwitchCategoryModal');
+const openCategoryFromFilter = document.getElementById('openCategoryFromFilter');
+const mobileDrawerSwitchCategory = document.getElementById('mobileDrawerSwitchCategory');
+
+const formulaModal = document.getElementById('formula-modal');
+const closeFormulaModalBtn = document.getElementById('closeFormulaModal');
+const mobileDrawerFormula = document.getElementById('mobileDrawerFormula');
+const mobileDrawerSearch = document.getElementById('mobileDrawerSearch');
+
+function getStoredTheme() {
+  const saved = localStorage.getItem('douban_books_theme');
+  if (saved === 'dark' || saved === 'light') return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+  const isDark = theme === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  try {
+    localStorage.setItem('douban_books_theme', theme);
+  } catch (_) {}
+
+  const navSun = document.getElementById('theme-icon-sun');
+  const navMoon = document.getElementById('theme-icon-moon');
+  if (navSun) navSun.style.display = isDark ? 'none' : 'inline-block';
+  if (navMoon) navMoon.style.display = isDark ? 'inline-block' : 'none';
+
+  const drawerSun = document.getElementById('drawer-theme-icon-sun');
+  const drawerMoon = document.getElementById('drawer-theme-icon-moon');
+  if (drawerSun) drawerSun.style.display = isDark ? 'none' : 'inline-block';
+  if (drawerMoon) drawerMoon.style.display = isDark ? 'inline-block' : 'none';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || getStoredTheme();
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+applyTheme(getStoredTheme());
+
+if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
+if (mobileThemeToggle) mobileThemeToggle.addEventListener('click', toggleTheme);
+
+function openDrawer() {
+  if (drawerLayer) {
+    drawerLayer.removeAttribute('hidden');
+    drawerLayer.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeDrawer() {
+  if (drawerLayer) {
+    drawerLayer.setAttribute('hidden', '');
+    drawerLayer.hidden = true;
+    document.body.style.overflow = '';
+  }
+}
+
+if (drawerToggle) drawerToggle.addEventListener('click', openDrawer);
+if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
+if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
+
+function openSwitchCategoryModal() {
+  if (switchCategoryModal) {
+    switchCategoryModal.removeAttribute('hidden');
+    switchCategoryModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeSwitchCategoryModal() {
+  if (switchCategoryModal) {
+    switchCategoryModal.setAttribute('hidden', '');
+    switchCategoryModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+}
+
+if (closeSwitchCategoryModalBtn) closeSwitchCategoryModalBtn.addEventListener('click', closeSwitchCategoryModal);
+if (switchCategoryModal) {
+  switchCategoryModal.addEventListener('click', (e) => {
+    if (e.target === switchCategoryModal) closeSwitchCategoryModal();
+  });
+}
+if (openCategoryFromFilter) {
+  openCategoryFromFilter.addEventListener('click', openSwitchCategoryModal);
+}
+if (mobileDrawerSwitchCategory) {
+  mobileDrawerSwitchCategory.addEventListener('click', () => {
+    closeDrawer();
+    openSwitchCategoryModal();
+  });
+}
+
+function openFormulaModal() {
+  if (formulaModal) {
+    formulaModal.removeAttribute('hidden');
+    formulaModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeFormulaModal() {
+  if (formulaModal) {
+    formulaModal.setAttribute('hidden', '');
+    formulaModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+}
+
+if (closeFormulaModalBtn) closeFormulaModalBtn.addEventListener('click', closeFormulaModal);
+if (formulaModal) {
+  formulaModal.addEventListener('click', (e) => {
+    if (e.target === formulaModal) closeFormulaModal();
+  });
+}
+if (mobileDrawerFormula) {
+  mobileDrawerFormula.addEventListener('click', () => {
+    closeDrawer();
+    openFormulaModal();
+  });
+}
+
+if (mobileDrawerSearch) {
+  mobileDrawerSearch.addEventListener('click', () => {
+    closeDrawer();
+    const searchInput = $('#all-book-search') || $('#source-search');
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+}
+
+window.addEventListener('keydown', (e) => {
+  const isInputActive = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+  if ((e.key === 'd' || e.key === 'D') && !isInputActive) {
+    e.preventDefault();
+    toggleTheme();
+  } else if (e.key === 'Escape') {
+    if (switchCategoryModal && !switchCategoryModal.hidden) {
+      closeSwitchCategoryModal();
+    } else if (formulaModal && !formulaModal.hidden) {
+      closeFormulaModal();
+    } else if (drawerLayer && !drawerLayer.hidden) {
+      closeDrawer();
+    }
+  }
+});
+
+function updateMobileCategoryLabel(subLabel) {
+  const mobileVal = document.getElementById('mobileCurrentCategory');
+  if (!mobileVal) return;
+  const mainLabel = labels[kind] || '全部书籍';
+  if (subLabel) {
+    mobileVal.textContent = `${mainLabel} / ${subLabel}`;
+  } else if (kind === 'all') {
+    mobileVal.textContent = '全部书籍';
+  } else if (source && source.label) {
+    mobileVal.textContent = `${mainLabel} / ${source.label}`;
+  } else {
+    mobileVal.textContent = mainLabel;
+  }
+}
+
+// 动态响应式转移 Tabs 和 Source-Panel（桌面端在顶部和侧边，移动端在切类弹窗中）
+function syncCategoryPlacement() {
+  const isMobile = window.innerWidth <= 800;
+  const desktopCatSlot = document.getElementById('desktop-category-slot');
+  const desktopSrcSlot = document.getElementById('desktop-source-slot');
+  const modalCatSlot = document.getElementById('modal-category-slot');
+  const tabsNav = document.getElementById('category-tabs-nav');
+  const srcPanel = document.getElementById('source-panel');
+
+  if (!tabsNav || !srcPanel || !desktopCatSlot || !desktopSrcSlot || !modalCatSlot) return;
+
+  if (isMobile) {
+    if (modalCatSlot.firstElementChild !== tabsNav) {
+      modalCatSlot.appendChild(tabsNav);
+      modalCatSlot.appendChild(srcPanel);
+    }
+  } else {
+    if (desktopCatSlot.firstElementChild !== tabsNav) {
+      desktopCatSlot.appendChild(tabsNav);
+    }
+    if (desktopSrcSlot.firstElementChild !== srcPanel) {
+      desktopSrcSlot.appendChild(srcPanel);
+    }
+  }
+}
+
+window.addEventListener('resize', syncCategoryPlacement);
+syncCategoryPlacement();

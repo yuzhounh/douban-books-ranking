@@ -10,8 +10,12 @@ fetch('data/catalog.json')
     catalog=data;
     $('#formula').textContent='综合评分 = '+data.formula;
     $('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');
-    $('#all-count').textContent=data.all_books.count.toLocaleString();
-    for(const name of ['tag','doulist','series','top250'])$('#'+name+'-count').textContent=data.categories[name].length;
+    const allCount = data.all_books.count;
+    $('#all-count').textContent = allCount >= 10000 ? (allCount / 10000).toFixed(1) + '万' : allCount.toLocaleString();
+    const pill = $('#modal-all-count-pill');
+    if (pill) pill.textContent = allCount.toLocaleString();
+    for(const name of ['tag','doulist','series'])$('#'+name+'-count').textContent=data.categories[name].length;
+    $('#top250-count').textContent='250';
     activateKind('all');
   })
   .catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');
@@ -61,7 +65,10 @@ function activateKind(nextKind){
   $('#source-title').textContent='请选择一个来源';
   $('#status').textContent='请选择左侧来源';
   renderSources();
-  selectFirstSource();
+  // 仅在桌面端侧边栏模式下自动选第一项；在移动端弹窗内绝不自动触发，让用户在弹窗中自选具体项
+  if (window.innerWidth > 800) {
+    selectFirstSource();
+  }
 }
 
 function renderSources(){
@@ -91,7 +98,7 @@ function renderSources(){
   if(!matches.length)list.textContent='没有匹配的来源';
 }
 
-function selectFirstSource(){const first=$('#source-list .source-item');if(first)first.click()}
+function selectFirstSource(){if(window.innerWidth<=800)return;const first=$('#source-list .source-item');if(first)first.click()}
 
 function ensureAllWorker(){
   if(allWorker)return allWorker;
@@ -361,3 +368,17 @@ function syncCategoryPlacement() {
 
 window.addEventListener('resize', syncCategoryPlacement);
 syncCategoryPlacement();
+
+
+// 移动端切类弹窗中的“全部书籍”快捷选择按钮
+const modalAllBooksChoiceBtn = document.getElementById('modalAllBooksChoiceBtn');
+if (modalAllBooksChoiceBtn) {
+  modalAllBooksChoiceBtn.addEventListener('click', () => {
+    activateKind('all');
+    loadAllBooks(1);
+    updateMobileCategoryLabel();
+    if (window.innerWidth <= 800 && typeof closeSwitchCategoryModal === 'function') {
+      closeSwitchCategoryModal();
+    }
+  });
+}

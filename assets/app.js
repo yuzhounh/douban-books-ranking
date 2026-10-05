@@ -73,13 +73,19 @@ function activateKind(nextKind){
 
 function renderSources(){
   if(!catalog||kind==='all')return;
+  const list=$('#source-list');
+  if (kind === 'tag') {
+    list.classList.add('is-tag-category');
+  } else {
+    list.classList.remove('is-tag-category');
+  }
   const query=$('#source-search').value.trim().toLowerCase();
   const matches=catalog.categories[kind].filter(item=>(item.label+' '+item.key).toLowerCase().includes(query));
-  const list=$('#source-list');
   list.innerHTML='';
   for(const item of matches){
     const button=document.createElement('button');
     button.className='source-item'+(source===item?' active':'');
+    button.title=item.label;
     button.setAttribute('aria-pressed',source===item?'true':'false');
     button.innerHTML='<span>'+esc(item.label)+'</span><span>'+item.count.toLocaleString()+'</span>';
     button.addEventListener('click',()=>{

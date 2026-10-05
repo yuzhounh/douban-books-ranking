@@ -523,27 +523,65 @@
 }
 #modal-category-slot .tabs {
   margin: 0 0 14px 0 !important;
-  padding: 2px 2px 8px 2px !important;
-  overflow-x: auto;
-  display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--line);
+  padding: 2px 0 12px 0 !important;
+  overflow-x: visible !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 5px !important;
+  border-bottom: 1px solid var(--line) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 #modal-category-slot .tab {
-  flex-shrink: 0;
-  padding: 8px 14px;
-  border-radius: 9px;
-  font-size: 13px;
-  border: 1px solid var(--line);
-  background: var(--paper);
-  color: var(--muted);
-  box-shadow: none;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  padding: 8px 2px !important;
+  border-radius: 10px !important;
+  font-size: 12.5px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+#modal-category-slot .tab .tab-label {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+}
+#modal-category-slot .tab .tab-count {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: var(--muted) !important;
+  line-height: 1 !important;
+  margin: 0 !important;
 }
 #modal-category-slot .tab.active {
-  border-color: var(--green);
-  background: var(--card);
-  color: var(--green);
-  font-weight: 700;
+  border-color: var(--green) !important;
+  background: var(--card) !important;
+  color: var(--green) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(23, 107, 77, 0.14) !important;
+}
+#modal-category-slot .tab.active .tab-count {
+  color: var(--green) !important;
+  font-weight: 600 !important;
+}
+.all-books-choice-wrap {
+  margin-bottom: 12px;
+}
+#desktop-source-slot .all-books-choice-wrap {
+  display: none !important;
 }
 #modal-category-slot .source-panel {
   border: none;
@@ -609,4 +647,30 @@
 .formula-box span {
   color: var(--green);
   font-weight: 700;
+}
+
+
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 10px !important;
+  }
+  .modal-card {
+    padding: 16px 12px 18px !important;
+    border-radius: 14px !important;
+  }
+  .modal-header {
+    margin-bottom: 12px !important;
+  }
+  #modal-category-slot .tabs {
+    gap: 4px !important;
+  }
+  #modal-category-slot .tab {
+    padding: 7px 1px !important;
+  }
+  #modal-category-slot .tab .tab-label {
+    font-size: 11.5px !important;
+  }
+  #modal-category-slot .tab .tab-count {
+    font-size: 10.5px !important;
+  }
 }

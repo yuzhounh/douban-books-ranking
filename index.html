@@ -185,11 +185,11 @@
   <main>
     <div id="desktop-category-slot">
       <nav class="tabs" id="category-tabs-nav" aria-label="来源类别">
-        <button class="tab active" data-kind="all">全部书籍 <span id="all-count"></span></button>
-        <button class="tab" data-kind="tag">标签 <span id="tag-count"></span></button>
-        <button class="tab" data-kind="doulist">豆列 <span id="doulist-count"></span></button>
-        <button class="tab" data-kind="series">丛书 <span id="series-count"></span></button>
-        <button class="tab" data-kind="top250">Top 250 <span id="top250-count"></span></button>
+        <button class="tab active" data-kind="all" type="button"><span class="tab-label">全部书籍</span><span class="tab-count" id="all-count"></span></button>
+        <button class="tab" data-kind="tag" type="button"><span class="tab-label">标签</span><span class="tab-count" id="tag-count"></span></button>
+        <button class="tab" data-kind="doulist" type="button"><span class="tab-label">豆列</span><span class="tab-count" id="doulist-count"></span></button>
+        <button class="tab" data-kind="series" type="button"><span class="tab-label">丛书</span><span class="tab-count" id="series-count"></span></button>
+        <button class="tab" data-kind="top250" type="button"><span class="tab-label">Top 250</span><span class="tab-count" id="top250-count"></span></button>
       </nav>
     </div>
 
@@ -197,8 +197,16 @@
       <div id="desktop-source-slot">
         <aside class="source-panel" id="source-panel">
           <div id="all-controls" class="all-controls">
-            <label for="all-book-search">搜索全部书籍</label>
-            <input id="all-book-search" type="search" placeholder="输入书名或豆瓣 ID" autocomplete="off">
+            <div class="all-books-choice-wrap">
+              <button type="button" class="source-item active" id="modalAllBooksChoiceBtn">
+                <span>全部书籍（浏览 33.8 万本全部数据）</span>
+                <span id="modal-all-count-pill">338,820</span>
+              </button>
+            </div>
+            <div class="all-book-search-wrap" style="margin-top: 14px;">
+              <label for="all-book-search">搜索全部书籍</label>
+              <input id="all-book-search" type="search" placeholder="输入书名或豆瓣 ID" autocomplete="off">
+            </div>
           </div>
           <div id="source-controls" hidden>
             <div id="source-search-fields">

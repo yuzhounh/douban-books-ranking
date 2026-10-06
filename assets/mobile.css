@@ -5,20 +5,83 @@
   .table-wrap { overflow: visible; }
   table, tbody { display: block; width: 100%; }
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  tbody tr {
+    display: grid;
+    grid-template-columns: minmax(24px, auto) auto minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 5px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--line);
+    align-items: baseline;
+  }
   td { min-width: 0 !important; padding: 0; border: 0; overflow-wrap: anywhere; }
-  td:nth-child(3) { grid-column: 1 / -1; grid-row: 1; }
-  td:nth-child(1) { grid-column: 1; grid-row: 2; color: var(--muted); }
-  td:nth-child(1)::before { content: '#'; }
-  td:nth-child(4) { grid-column: 2; grid-row: 2; }
-  td:nth-child(4)::before { content: '评分 '; color: var(--muted); }
-  td.rating-count { grid-column: 3; grid-row: 2; padding: 0; }
-  td.rating-count::after { content: ' 人评价'; color: var(--muted); font-size: 12px; }
-  td:nth-child(2) { grid-column: 1 / 3; grid-row: 3; align-self: center; font-size: 12px; color: var(--muted); }
-  td:nth-child(2)::before { content: 'ID '; }
-  td:nth-child(6) { grid-column: 3; grid-row: 3; }
-  td:nth-child(6) a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
-  td[colspan] { grid-column: 1 / -1; padding: 24px 0; }
+  /* 第 1 行：序号 + 书名 */
+  td:nth-child(1), td.rank {
+    grid-column: 1;
+    grid-row: 1;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    align-self: start;
+    width: auto;
+  }
+  td:nth-child(3), td.title {
+    grid-column: 2 / -1;
+    grid-row: 1;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  /* 第 2 行：评分 + ID + 评价人数 */
+  td:nth-child(4), td.rating {
+    grid-column: 2;
+    grid-row: 2;
+    color: var(--green);
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: left;
+    font-size: 13.5px;
+  }
+  td:nth-child(4)::before, td.rating::before {
+    content: '评分 ';
+    color: var(--muted);
+    font-weight: normal;
+    font-size: 13px;
+  }
+  td:nth-child(2), td.id {
+    grid-column: 3;
+    grid-row: 2;
+    color: var(--muted);
+    font-size: 12.5px;
+    white-space: nowrap;
+    align-self: center;
+  }
+  td:nth-child(2)::before, td.id::before {
+    content: 'ID ';
+  }
+  td:nth-child(5), td.rating-count {
+    grid-column: 4;
+    grid-row: 2;
+    padding: 0;
+    text-align: right;
+    white-space: nowrap;
+    justify-self: end;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  td:nth-child(5)::after, td.rating-count::after {
+    content: ' 人评价';
+    color: var(--muted);
+    font-size: 12px;
+  }
+  /* 移动端整卡与标题均已支持点击直达豆瓣，隐藏多余的第 6 列“豆瓣”独立按钮 */
+  td:nth-child(6), td.book-link-col {
+    display: none !important;
+  }
+  td[colspan], td.message {
+    grid-column: 1 / -1;
+    padding: 24px 0;
+    text-align: center;
+  }
   .pagination input { min-height: 44px; font-size: 16px; }
 }
 

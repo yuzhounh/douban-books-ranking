@@ -1,3 +1,7 @@
+.inline-id {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .workspace, .tabs { padding-inline: 12px; }
   input, select, .page-size-control select, .threshold-controls input { min-height: 44px; font-size: 16px; }
@@ -7,7 +11,7 @@
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   tbody tr {
     display: grid;
-    grid-template-columns: minmax(24px, auto) auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(24px, auto) 1fr auto;
     column-gap: 10px;
     row-gap: 5px;
     padding: 10px 4px;
@@ -15,7 +19,7 @@
     align-items: baseline;
   }
   td { min-width: 0 !important; padding: 0; border: 0; overflow-wrap: anywhere; }
-  /* 第 1 行：序号 + 书名 */
+  /* 第 1 行：序号 + 书名（含紧随其后的 ID） */
   td:nth-child(1), td.rank {
     grid-column: 1;
     grid-row: 1;
@@ -31,7 +35,23 @@
     font-weight: 600;
     line-height: 1.4;
   }
-  /* 第 2 行：评分 + ID + 评价人数 */
+  .inline-id {
+    display: inline;
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: normal;
+    color: var(--muted);
+    vertical-align: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  /* 隐藏独立的 ID 列和外链列 */
+  td:nth-child(2), td.id {
+    display: none !important;
+  }
+  td:nth-child(6), td.book-link-col {
+    display: none !important;
+  }
+  /* 第 2 行：评分 + 评价人数 */
   td:nth-child(4), td.rating {
     grid-column: 2;
     grid-row: 2;
@@ -47,19 +67,8 @@
     font-weight: normal;
     font-size: 13px;
   }
-  td:nth-child(2), td.id {
-    grid-column: 3;
-    grid-row: 2;
-    color: var(--muted);
-    font-size: 12.5px;
-    white-space: nowrap;
-    align-self: center;
-  }
-  td:nth-child(2)::before, td.id::before {
-    content: 'ID ';
-  }
   td:nth-child(5), td.rating-count {
-    grid-column: 4;
+    grid-column: 3;
     grid-row: 2;
     padding: 0;
     text-align: right;
@@ -72,10 +81,6 @@
     content: ' 人评价';
     color: var(--muted);
     font-size: 12px;
-  }
-  /* 移动端整卡与标题均已支持点击直达豆瓣，隐藏多余的第 6 列“豆瓣”独立按钮 */
-  td:nth-child(6), td.book-link-col {
-    display: none !important;
   }
   td[colspan], td.message {
     grid-column: 1 / -1;

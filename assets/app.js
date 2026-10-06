@@ -173,7 +173,7 @@ function renderBookRows(pageSize){
     return `<tr data-url="${url}" tabindex="0" role="link" aria-label="在豆瓣打开《${safeTitle}》">` +
       `<td class="rank">${rank}</td>` +
       `<td class="id">${book.id}</td>` +
-      `<td class="title"><a class="book-title-link" href="${url}" target="_blank" rel="noopener">${safeTitle}</a></td>` +
+      `<td class="title"><a class="book-title-link" href="${url}" target="_blank" rel="noopener">${safeTitle}</a><span class="inline-id">ID ${book.id}</span></td>` +
       `<td class="rating">${ratingStr}</td>` +
       `<td class="rating-count">${votesStr}</td>` +
       `<td class="book-link-col"><a href="${url}" target="_blank" rel="noopener">豆瓣</a></td>` +

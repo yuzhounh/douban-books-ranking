@@ -710,3 +710,36 @@
   border-radius: 999px !important;
   margin-left: auto !important;
 }
+
+/* 书籍卡片整行交互与书名链接样式 */
+tbody tr[data-url] {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+tbody tr[data-url]:hover {
+  background: color-mix(in srgb, var(--green) 7%, transparent);
+}
+tbody tr[data-url]:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--green) 7%, transparent);
+}
+.book-title-link {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+tbody tr[data-url]:hover .book-title-link,
+.book-title-link:hover {
+  color: var(--green);
+}
+.book-title-link:focus-visible {
+  outline: 2px solid var(--green);
+  border-radius: 4px;
+}
+td.message {
+  text-align: center;
+  color: var(--muted);
+  padding: 32px 16px;
+}

@@ -154,9 +154,31 @@ async function loadSourcePage(target){
   }catch(error){if(currentRequest===requestId)$('#status').textContent='这一页加载失败，请稍后重试。'}
 }
 
+function openBook(url) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function renderBookRows(pageSize){
-  const offset=(page-1)*pageSize;
-  $('#book-rows').innerHTML=books.map((book,index)=>'<tr><td>'+(offset+index+1)+'</td><td>'+book.id+'</td><td>'+esc(book.title)+'</td><td>'+(book.rating==null?'—':Number(book.rating).toFixed(1))+'</td><td class="rating-count">'+(book.rating_count==null?'—':book.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(book.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');
+  if (books.length === 0) {
+    $('#book-rows').innerHTML = '<tr><td colspan="6" class="message">没有找到匹配的书籍条目</td></tr>';
+    return;
+  }
+  const offset = (page - 1) * pageSize;
+  $('#book-rows').innerHTML = books.map((book, index) => {
+    const rank = offset + index + 1;
+    const ratingStr = book.rating == null ? '—' : Number(book.rating).toFixed(1);
+    const votesStr = book.rating_count == null ? '—' : book.rating_count.toLocaleString();
+    const url = encodeURI(book.url);
+    const safeTitle = esc(book.title);
+    return `<tr data-url="${url}" tabindex="0" role="link" aria-label="在豆瓣打开《${safeTitle}》">` +
+      `<td class="rank">${rank}</td>` +
+      `<td class="id">${book.id}</td>` +
+      `<td class="title"><a class="book-title-link" href="${url}" target="_blank" rel="noopener">${safeTitle}</a></td>` +
+      `<td class="rating">${ratingStr}</td>` +
+      `<td class="rating-count">${votesStr}</td>` +
+      `<td class="book-link-col"><a href="${url}" target="_blank" rel="noopener">豆瓣</a></td>` +
+    `</tr>`;
+  }).join('');
 }
 
 function updatePagination(){
@@ -385,6 +407,28 @@ if (modalAllBooksChoiceBtn) {
     updateMobileCategoryLabel();
     if (window.innerWidth <= 800 && typeof closeSwitchCategoryModal === 'function') {
       closeSwitchCategoryModal();
+    }
+  });
+}
+
+// 书籍卡片点击整行跳转与键盘回车交互
+const bookRowsTable = document.getElementById('book-rows');
+if (bookRowsTable) {
+  bookRowsTable.addEventListener('click', (e) => {
+    const row = e.target.closest('tr[data-url]');
+    if (!row) return;
+    if (e.target.closest('a')) return;
+    const url = row.dataset.url;
+    if (url) openBook(url);
+  });
+  bookRowsTable.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const row = e.target.closest('tr[data-url]');
+      if (row && e.target === row) {
+        e.preventDefault();
+        const url = row.dataset.url;
+        if (url) openBook(url);
+      }
     }
   });
 }

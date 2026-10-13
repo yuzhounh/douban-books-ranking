@@ -1,0 +1,5 @@
+The README now connects the current ranking application with the 2020 crawler/data repositories, the 2017 and earlier result snapshots, and the related movie ranking project. It preserves historical statistics, adds clone/setup steps and the existing code/data license distinction, and clarifies the database and publishing prerequisites. The generated README template receives the same changes so the next publication preserves them.
+
+Review also found two behavior problems: website rankings treated missing/nonpositive vote counts differently from exports, and publishing from a reused non-main checkout could commit on one branch while pushing another. Website scoring now uses the existing scoring function, and publishing rejects non-main/detached checkouts before copying files or pulling; new checkouts explicitly select main.
+
+Validation: 29 offline pytest tests passed, including ranking boundaries, mocked publish branch checks, and generated README content. `git diff --check` passed. No crawling, production data regeneration, or live site publication was performed.

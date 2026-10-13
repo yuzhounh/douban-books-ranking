@@ -1,0 +1,7 @@
+.pytest_cache
+tests
+src
+analysis
+sources
+__pycache__
+*.py

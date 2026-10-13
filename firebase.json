@@ -9,6 +9,10 @@
       "src/**",
       "analysis/**",
       "sources/**",
+      "tmp/**",
+      "review/**",
+      "AGENTS.md",
+      "GEMINI.md",
       "pyproject.toml",
       "*.py"
     ]

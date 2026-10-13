@@ -1,11 +1,23 @@
-let booksPromise=null,cacheKey='',matches=[];
+let booksPromise=null,booksFile='',cacheKey='',matches=[];
 
 async function loadBooks(file){
-  if(!booksPromise){
-    booksPromise=fetch(new URL('../'+file,self.location.href)).then(response=>{
-      if(!response.ok)throw Error(response.status);
-      return response.json();
-    }).then(data=>data.books);
+  if(!booksPromise||booksFile!==file){
+    booksFile=file;cacheKey='';
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(new Error('索引下载超时')),30000);
+    const loading=(async()=>{
+      try{
+        const response=await fetch(new URL('../'+file,self.location.href),{signal:controller.signal});
+        if(!response.ok)throw Error(response.status);
+        const data=await response.json();
+        if(!Array.isArray(data.books))throw Error('无效的书籍索引');
+        return data.books;
+      }catch(error){
+        if(booksPromise===loading){booksPromise=null;cacheKey=''}
+        throw error;
+      }finally{clearTimeout(timer)}
+    })();
+    booksPromise=loading;
   }
   return booksPromise;
 }
@@ -15,7 +27,7 @@ self.onmessage=async event=>{
   try{
     const books=await loadBooks(file);
     const normalizedQuery=String(query||'').trim().toLocaleLowerCase('zh-CN');
-    const key=JSON.stringify([normalizedQuery,minRating,minVotes]);
+    const key=JSON.stringify([file,normalizedQuery,minRating,minVotes]);
     if(key!==cacheKey){
       matches=[];
       for(let index=0;index<books.length;index++){

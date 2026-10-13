@@ -5,3 +5,8 @@ analysis
 sources
 __pycache__
 *.py
+tmp
+review
+.github
+AGENTS.md
+GEMINI.md

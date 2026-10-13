@@ -112,7 +112,7 @@ function ensureAllWorker(){
   allWorker.onmessage=event=>{
     const data=event.data;
     if(data.requestId!==requestId||kind!=='all')return;
-    if(data.error){$('#status').textContent='全部书籍索引加载失败，请稍后重试。';return}
+    if(data.error){$('#status').textContent='全部书籍索引加载失败，联网后点击“筛选”重试。';return}
     books=data.books.map(item=>({id:item[0],title:item[1],rating:item[2],rating_count:item[3],url:'https://book.douban.com/subject/'+item[0]+'/'}));
     page=data.page;totalPages=data.pages;resultCount=data.count;
     renderBookRows(pageSize);

@@ -10,6 +10,13 @@ from douban_books.ranking import rank_books
 from douban_books.storage import Database
 
 
+def test_packaged_templates_match_published_ui_and_workflow() -> None:
+    root = Path(__file__).resolve().parents[1]
+    for relative in ("index.html", "assets/app.js", "assets/pages-data.js", "assets/all-books-worker.js",
+                     "assets/style.css", "assets/mobile.css", "assets/favicon.svg", ".github/workflows/pages.yml", ".gitignore"):
+        assert (pages_site._TEMPLATES / relative).read_text("utf-8") == (root / relative).read_text("utf-8")
+
+
 def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_path: Path) -> None:
     books = [
         BookListing(1, "高分 <书>", 9.0, 1000, None, "https://book.douban.com/subject/1/"),
@@ -77,6 +84,7 @@ def test_build_pages_site_separates_sources_and_preserves_tag_membership(tmp_pat
     assert 3 not in {book["id"] for book in tag_payload["books"]}
     assert (tmp_path / "site" / "index.html").exists()
     assert (tmp_path / "site" / "assets" / "app.js").exists()
+    assert (tmp_path / "site" / "assets" / "favicon.svg").read_text("utf-8") == pages_site.FAVICON_SVG
     assert (tmp_path / "site" / "assets" / "all-books-worker.js").exists()
     assert (tmp_path / "site" / ".github" / "workflows" / "pages.yml").exists()
     readme = (tmp_path / "site" / "README.md").read_text("utf-8")
@@ -117,6 +125,13 @@ def test_build_pages_site_splits_large_sources_into_data_pages(tmp_path: Path) -
     all_books = json.loads((tmp_path / "site" / catalog["all_books"]["file"]).read_text("utf-8"))
     assert catalog["all_books"]["count"] == 205
     assert len(all_books["books"]) == 205
+    paged = catalog["all_books"]["paged"]
+    assert paged["count"] == 205
+    assert paged["page_size"] == 100
+    page_rows = [json.loads((tmp_path / "site" / paged["root"] / f"{i}.json").read_text("utf-8"))["books"]
+                 for i in range(1, 4)]
+    assert [len(rows) for rows in page_rows] == [100, 100, 5]
+    assert [row for rows in page_rows for row in rows] == all_books["books"]
     source = catalog["categories"]["tag"][0]
     assert source["count"] == 205
     assert source["page_size"] == 100

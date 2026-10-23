@@ -1,0 +1,12 @@
+{
+  "output": "D:\\Archives\\20260809 Douban Books\\dist_netlify\\performance-20261023",
+  "paths": [
+    "index.html",
+    "assets",
+    "data",
+    ".nojekyll"
+  ],
+  "noPrivateSource": true,
+  "copyCompleted": true,
+  "transferVerification": "Normal Copy-Item completion; no additional integrity comparison"
+}

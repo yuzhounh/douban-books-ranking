@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: 24
       - name: Check index download recovery
-        run: node --test tests/all-books-worker.test.cjs
+        run: node --test --test-concurrency=2 tests/all-books-worker.test.cjs tests/pages-data.test.cjs
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -40,6 +40,7 @@ jobs:
           PYTHONPATH: src
         run: |
           pytest tests/test_pages_site.py tests/test_ranking_export.py -p no:cacheprovider
+          python -m douban_books.pages_shards
       - name: Prepare site artifacts
         run: |
           mkdir -p _site

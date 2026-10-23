@@ -10,6 +10,7 @@ from typing import Any, Iterable, Mapping
 
 from .ranking import integrated_score
 from .storage import Database
+from .pages_shards import write_all_pages
 
 
 SITE_TITLE = "豆瓣读书排行榜"
@@ -60,6 +61,7 @@ def build_pages_site(
         ],
     }
     _write_json(out_dir / "data" / "all-books.json", all_books_payload)
+    all_pages = write_all_pages(all_books_payload, out_dir / "data")
 
     for kind, source_key, label, rows in _iter_sources(database):
         if kind == "tag" and len(rows) < min_tag_books:
@@ -108,6 +110,7 @@ def build_pages_site(
         "all_books": {
             "count": len(all_rows),
             "file": "data/all-books.json",
+            "paged": all_pages,
             "page_size": PAGE_SIZE,
         },
         "categories": categories,
@@ -119,6 +122,8 @@ def build_pages_site(
     )
     (out_dir / "assets" / "mobile.css").write_text(MOBILE_CSS, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "app.js").write_text(APP_JS, encoding="utf-8", newline="\n")
+    (out_dir / "assets" / "pages-data.js").write_text(PAGES_DATA_JS, encoding="utf-8", newline="\n")
+    (out_dir / "assets" / "favicon.svg").write_text(FAVICON_SVG, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "all-books-worker.js").write_text(
         ALL_BOOKS_WORKER_JS, encoding="utf-8", newline="\n"
     )
@@ -199,7 +204,7 @@ def _site_readme(
 | `rating_count` | 评价人数 |
 | `url` | 豆瓣书籍页面链接 |
 
-网站目录位于 `data/catalog.json`，各来源按每页 100 本拆分为独立 JSON 文件，浏览器只加载当前页面所需的数据。“全部书籍”首次打开时按需加载紧凑索引 `data/all-books.json`，并在 Web Worker 中执行全库搜索与阈值筛选，避免阻塞页面交互。
+网站目录位于 `data/catalog.json`，来源及未筛选的全部书籍按100本分块，浏览器只读取当前页。设置全库文字、评分或评价人数条件时才读取保留的 `data/all-books.json`，在Web Worker中筛选；默认仍为全部书籍，排名和完整检索能力保持。页面缓存8块，过期下载中止，失败可重试。
 
 ## 项目结构
 
@@ -375,383 +380,24 @@ def _write_json(path: Path, payload: Any) -> None:
     )
 
 
-MOBILE_CSS = """@media (max-width: 720px) {
-  .workspace, .tabs { padding-inline: 12px; }
-  input, select, .page-size-control select, .threshold-controls input { min-height: 44px; font-size: 16px; }
-  button { min-height: 44px; }
-  .table-wrap { overflow: visible; }
-  table, tbody { display: block; width: 100%; }
-  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--line); }
-  td { min-width: 0 !important; padding: 0; border: 0; overflow-wrap: anywhere; }
-  td:nth-child(3) { grid-column: 1 / -1; grid-row: 1; }
-  td:nth-child(1) { grid-column: 1; grid-row: 2; color: var(--muted); }
-  td:nth-child(1)::before { content: '#'; }
-  td:nth-child(4) { grid-column: 2; grid-row: 2; }
-  td:nth-child(4)::before { content: '评分 '; color: var(--muted); }
-  td.rating-count { grid-column: 3; grid-row: 2; padding: 0; }
-  td.rating-count::after { content: ' 人评价'; color: var(--muted); font-size: 12px; }
-  td:nth-child(2) { grid-column: 1 / 3; grid-row: 3; align-self: center; font-size: 12px; color: var(--muted); }
-  td:nth-child(2)::before { content: 'ID '; }
-  td:nth-child(6) { grid-column: 3; grid-row: 3; }
-  td:nth-child(6) a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
-  td[colspan] { grid-column: 1 / -1; padding: 24px 0; }
-  .pagination input { min-height: 44px; font-size: 16px; }
-}
 
-@media (min-width: 744px) and (min-height: 600px) and (pointer: coarse) {
-  button, input, select { min-height: 44px; }
-  input, select { font-size: 16px; }
-  .source-item span:first-child { min-width: 0; overflow-wrap: anywhere; }
-}
-"""
-
-INDEX_HTML = """<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="浏览和筛选豆瓣读书公开列表中的全部书籍、标签、豆列、丛书与 Top 250 排行">
-  <title>豆瓣读书排行榜</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <link rel="stylesheet" href="assets/mobile.css">
-  <style>[hidden]{display:none!important}</style>
-</head>
-<body>
-  <header class="hero">
-    <div class="hero-inner">
-      <p class="eyebrow">DOUBAN BOOKS ARCHIVE</p>
-      <h1>豆瓣读书排行榜</h1>
-      <p class="lede">从标签、豆列、丛书与 Top 250 重新发现值得读的书。</p>
-      <p class="formula" id="formula">综合评分加载中…</p>
-    </div>
-  </header>
-  <main>
-    <nav class="tabs" aria-label="来源类别">
-      <button class="tab active" data-kind="all">全部书籍 <span id="all-count"></span></button>
-      <button class="tab" data-kind="tag">标签 <span id="tag-count"></span></button>
-      <button class="tab" data-kind="doulist">豆列 <span id="doulist-count"></span></button>
-      <button class="tab" data-kind="series">丛书 <span id="series-count"></span></button>
-      <button class="tab" data-kind="top250">Top 250 <span id="top250-count"></span></button>
-    </nav>
-    <section class="workspace">
-      <aside class="source-panel">
-        <div id="all-controls" class="all-controls">
-          <label for="all-book-search">搜索全部书籍</label>
-          <input id="all-book-search" type="search" placeholder="输入书名或豆瓣 ID" autocomplete="off">
-        </div>
-        <div id="source-controls" hidden>
-          <div id="source-search-fields">
-            <label id="source-search-label" for="source-search">查找来源</label>
-            <input id="source-search" type="search" placeholder="输入来源名" autocomplete="off">
-          </div>
-          <div id="source-list" class="source-list" aria-live="polite"></div>
-        </div>
-      </aside>
-      <section class="books-panel">
-        <div class="books-head">
-          <div><p class="section-label" id="kind-label">全部书籍</p><h2 id="source-title">全部书籍</h2></div>
-          <div id="all-threshold-controls" class="threshold-controls">
-            <label for="min-rating">最低评分
-              <input id="min-rating" type="number" min="0" max="10" step="0.1" value="0.0">
-            </label>
-            <label for="min-votes">最低评价人数
-              <input id="min-votes" type="number" min="0" step="1" value="0">
-            </label>
-            <div class="filter-actions">
-              <button id="apply-all-filters">筛选</button>
-              <button id="reset-all-filters">重置</button>
-            </div>
-          </div>
-        </div>
-        <div class="status-row">
-          <p id="status" class="status">正在加载全部书籍索引…</p>
-          <label class="page-size-control" for="page-size">每页显示
-            <select id="page-size">
-              <option value="25">25</option>
-              <option value="50" selected>50</option>
-              <option value="100">100</option>
-            </select>
-            条
-          </label>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>#</th><th>ID</th><th>书名</th><th>评分</th><th class="rating-count">评价人数</th><th>链接</th></tr></thead>
-            <tbody id="book-rows"></tbody>
-          </table>
-        </div>
-        <nav id="pagination" class="pagination" aria-label="书籍分页" hidden>
-          <button id="first-page" aria-label="第一页">首页</button>
-          <button id="previous-page" aria-label="上一页">上一页</button>
-          <label>第 <input id="page-number" type="number" min="1" value="1"> 页</label>
-          <span id="page-total">/ 1 页</span>
-          <button id="go-page">跳转</button>
-          <button id="next-page" aria-label="下一页">下一页</button>
-          <button id="last-page" aria-label="最后一页">末页</button>
-        </nav>
-      </section>
-    </section>
-  </main>
-  <footer>
-    <span>数据来自豆瓣公开的标签筛选页、豆列、丛书与 Top 250 页面，仅供学习、研究与索引。评分及评价人数可能随时间变化。 <a href="https://github.com/yuzhounh/douban-books-ranking" target="_blank" rel="noopener">查看源代码</a></span>
-    <span id="generated-at"></span>
-  </footer>
-  <script src="assets/app.js" defer></script>
-</body>
-</html>
-"""
+# Packaged templates are the canonical UI. Generated root files keep the same
+# mobile controls and recovery behavior when rebuilding from a new data snapshot.
+_TEMPLATES = Path(__file__).with_name("templates")
 
 
-STYLE_CSS = r""":root{--ink:#14221b;--muted:#66736c;--paper:#f5f1e8;--card:#fffdf8;--line:#dcd6ca;--green:#176b4d;--green2:#0d4f39;--gold:#bd7f2f;--shadow:0 18px 50px rgba(30,44,36,.09)}*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--paper);font-family:Inter,"Noto Sans SC","Microsoft YaHei",system-ui,sans-serif}.hero{background:var(--green2);color:#fff;padding:64px 0 58px;position:relative;overflow:hidden}.hero:after{content:"";position:absolute;width:420px;height:420px;border:1px solid rgba(255,255,255,.12);border-radius:50%;right:-120px;top:-230px;box-shadow:0 0 0 70px rgba(255,255,255,.025),0 0 0 140px rgba(255,255,255,.02)}.hero-inner{width:min(1180px,calc(100% - 32px));margin:auto;position:relative;z-index:1}.eyebrow,.section-label{font-size:12px;letter-spacing:.18em;font-weight:800;color:#b8dac9}.hero .eyebrow{margin:0 0 14px}.hero h1{font-family:Georgia,"Noto Serif SC","Songti SC",serif;font-size:clamp(2.2rem,6vw,4.8rem);line-height:1.06;margin:0;font-weight:700}.lede{font-size:1.05rem;margin:20px 0;color:#d9ebe2}.formula{display:inline-block;margin:0;padding:9px 14px;border:1px solid rgba(255,255,255,.18);border-radius:99px;color:#cce3d8;font-size:.9rem;font-family:"Cascadia Code",Consolas,monospace}.tabs{max-width:1240px;margin:-23px auto 0;padding:0 24px;display:flex;gap:8px;position:relative;z-index:2}.tab{border:1px solid var(--line);background:var(--card);padding:14px 24px;border-radius:12px 12px 0 0;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer}.tab.active{color:var(--green);border-bottom-color:var(--card);box-shadow:0 -8px 24px rgba(30,44,36,.05)}.tab span{font-weight:500;margin-left:4px}.workspace{max-width:1240px;margin:0 auto 54px;padding:0 24px;display:grid;grid-template-columns:290px minmax(0,1fr);min-height:620px}.source-panel,.books-panel{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow)}.source-panel{padding:24px 16px;border-radius:0 0 0 16px}.source-panel label,.book-search{display:block;color:var(--muted);font-size:12px;font-weight:700}.source-panel input,.book-search input{width:100%;margin-top:8px;border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:#fff;font:inherit;outline:none}.source-panel input:focus,.book-search input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(23,107,77,.1)}.source-list{margin-top:16px;max-height:1200px;overflow:auto}.source-item{display:flex;width:100%;justify-content:space-between;gap:10px;border:0;border-radius:8px;padding:10px;background:transparent;text-align:left;color:var(--ink);cursor:pointer}.source-item:hover{background:#f0ece3}.source-item.active{background:#e4efe9;color:var(--green2);font-weight:700}.source-item span:last-child{color:var(--muted);font-variant-numeric:tabular-nums}.books-panel{padding:28px;border-left:0;border-radius:0 16px 16px 0;min-width:0}.books-head{display:flex;align-items:end;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line);padding-bottom:20px}.section-label{color:var(--green);margin:0 0 7px}.books-head h2{font-family:Georgia,"Noto Serif SC","Songti SC",serif;margin:0;font-size:30px}.book-search{width:220px}.status{color:var(--muted);font-size:14px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;color:var(--muted);font-size:12px;letter-spacing:.04em;padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap}td{padding:13px 10px;border-bottom:1px solid #ece7de;vertical-align:top}td:nth-child(1),td:nth-child(2),td:nth-child(4),td:nth-child(5){font-variant-numeric:tabular-nums;white-space:nowrap}th.rating-count,td.rating-count{text-align:right;padding-right:48px}td:nth-child(3){min-width:240px;font-weight:600}a{color:var(--green);text-underline-offset:3px}.load-more{display:block;margin:22px auto 0;border:1px solid var(--green);color:var(--green);background:transparent;border-radius:9px;padding:10px 22px;font-weight:700;cursor:pointer}.load-more:hover{background:#e4efe9}footer{max-width:1240px;margin:auto;padding:0 24px 36px;display:flex;justify-content:space-between;color:var(--muted);font-size:12px}@media(max-width:800px){.hero{padding-top:46px}.tabs{overflow:auto}.tab{white-space:nowrap;padding:12px 18px}.workspace{grid-template-columns:1fr}.source-panel{border-radius:0;max-height:270px}.source-list{max-height:150px}.books-panel{border-left:1px solid var(--line);border-top:0;border-radius:0 0 16px 16px;padding:20px 14px}.books-head{align-items:stretch;flex-direction:column}.book-search{width:100%}footer{gap:12px;flex-direction:column}}"""
+def _template(relative: str) -> str:
+    return (_TEMPLATES / relative).read_text(encoding="utf-8")
 
 
-PAGINATION_CSS = r""".pagination{align-items:center;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:24px 0 4px}.pagination button{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--green);cursor:pointer;font-weight:700;padding:9px 12px}.pagination button:hover:not(:disabled){background:#e4efe9;border-color:var(--green)}.pagination button:disabled{color:#a6aea9;cursor:not-allowed}.pagination label,.pagination span{color:var(--muted);font-size:13px}.pagination input{border:1px solid var(--line);border-radius:7px;font:inherit;padding:7px;text-align:center;width:64px}.status-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.status-row .status{margin-right:auto}.page-size-control{color:var(--muted);font-size:13px;white-space:nowrap}.page-size-control select{background:#fff;border:1px solid var(--line);border-radius:7px;color:var(--ink);font:inherit;margin:0 4px;padding:5px 8px}@media(max-width:600px){.pagination{justify-content:flex-start}.pagination button{padding:8px 10px}.pagination #first-page,.pagination #last-page{display:none}}"""
-
-
-FILTER_CSS = r""".all-controls{display:block}.all-controls label{margin-top:0}.threshold-controls{align-items:end;display:flex;gap:10px}.threshold-controls label{color:var(--muted);font-size:12px;font-weight:700}.threshold-controls input{background:#fff;border:1px solid var(--line);border-radius:9px;display:block;font:inherit;margin-top:8px;outline:none;padding:9px 10px;width:92px}.threshold-controls label:nth-child(2) input{width:116px}.threshold-controls input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(23,107,77,.1)}.filter-actions{display:flex;gap:8px}.filter-actions button{border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--green);cursor:pointer;font:inherit;font-size:14px;font-weight:500;padding:8px 14px;white-space:nowrap}.filter-actions button:hover{background:#e4efe9;border-color:var(--green)}@media(max-width:1000px){.books-head{align-items:stretch;flex-direction:column}.threshold-controls{flex-wrap:wrap}}@media(max-width:600px){.threshold-controls{align-items:stretch;display:grid;grid-template-columns:1fr 1fr}.threshold-controls input,.threshold-controls label:nth-child(2) input{width:100%}.filter-actions{grid-column:1/-1}.filter-actions button{flex:1}}"""
-
-
-APP_JS = r"""const PAGE_SIZE=100;const labels={tag:'标签',doulist:'豆列',series:'丛书'};let catalog=null,kind='tag',books=[],shown=0;const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));fetch('data/catalog.json').then(r=>{if(!r.ok)throw Error(r.status);return r.json()}).then(data=>{catalog=data;$('#formula').textContent='综合评分 = '+data.formula;$('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');for(const k of Object.keys(labels))$('#'+k+'-count').textContent=data.categories[k].length;renderSources();}).catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');kind=b.dataset.kind;books=[];shown=0;$('#kind-label').textContent=labels[kind];$('#source-title').textContent='请选择一个来源';$('#source-search').value='';$('#book-search').value='';$('#book-rows').innerHTML='';$('#status').textContent='请选择左侧来源';$('#load-more').hidden=true;renderSources();}));$('#source-search').addEventListener('input',renderSources);$('#book-search').addEventListener('input',()=>{shown=0;renderBooks();});$('#load-more').addEventListener('click',()=>{shown+=PAGE_SIZE;renderBooks(false)});function renderSources(){if(!catalog)return;const q=$('#source-search').value.trim().toLowerCase();const list=catalog.categories[kind].filter(x=>(x.label+' '+x.key).toLowerCase().includes(q));$('#source-list').innerHTML='';for(const src of list){const b=document.createElement('button');b.className='source-item';b.innerHTML='<span>'+esc(src.label)+'</span><span>'+src.count.toLocaleString()+'</span>';b.addEventListener('click',()=>loadSource(src,b));$('#source-list').appendChild(b)}if(!list.length)$('#source-list').textContent='没有匹配的来源';}async function loadSource(src,button){document.querySelectorAll('.source-item').forEach(x=>x.classList.remove('active'));button.classList.add('active');$('#source-title').textContent=src.label;$('#status').textContent='正在加载…';$('#book-rows').innerHTML='';$('#load-more').hidden=true;try{const r=await fetch(src.file);if(!r.ok)throw Error(r.status);const data=await r.json();books=data.books;shown=0;$('#book-search').value='';renderBooks()}catch(e){$('#status').textContent='数据加载失败，请稍后重试。'}}function renderBooks(reset=true){const q=$('#book-search').value.trim().toLowerCase();const filtered=books.filter(b=>!q||b.title.toLowerCase().includes(q)||String(b.id).includes(q));if(reset)shown=PAGE_SIZE;const slice=filtered.slice(0,shown);$('#book-rows').innerHTML=slice.map((b,i)=>'<tr><td>'+(i+1)+'</td><td>'+b.id+'</td><td>'+esc(b.title)+'</td><td>'+(b.rating??'—')+'</td><td>'+(b.rating_count==null?'—':b.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(b.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');$('#status').textContent='共 '+filtered.length.toLocaleString()+' 本，按综合评分排序';$('#load-more').hidden=shown>=filtered.length;}"""
-
-
-# The paginated implementation supersedes the original single-file client above.
-APP_JS = r"""const labels={all:'全部书籍',tag:'标签',doulist:'豆列',series:'丛书',top250:'Top 250'};
-const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名']};
-let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null,pageSize=50;
-const $=selector=>document.querySelector(selector);
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-
-fetch('data/catalog.json')
-  .then(response=>{if(!response.ok)throw Error(response.status);return response.json()})
-  .then(data=>{
-    catalog=data;
-    $('#formula').textContent='综合评分 = '+data.formula;
-    $('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');
-    $('#all-count').textContent=data.all_books.count.toLocaleString();
-    for(const name of ['tag','doulist','series','top250'])$('#'+name+'-count').textContent=data.categories[name].length;
-    activateKind('all');
-  })
-  .catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');
-
-document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>activateKind(button.dataset.kind)));
-$('#source-search').addEventListener('input',renderSources);
-$('#apply-all-filters').addEventListener('click',()=>loadAllBooks(1));
-$('#reset-all-filters').addEventListener('click',()=>{
-  $('#all-book-search').value='';$('#min-rating').value='0.0';$('#min-votes').value='0';loadAllBooks(1);
-});
-for(const selector of ['#all-book-search','#min-rating','#min-votes']){
-  $(selector).addEventListener('keydown',event=>{if(event.key==='Enter')loadAllBooks(1)});
-}
-$('#first-page').addEventListener('click',()=>loadPage(1));
-$('#previous-page').addEventListener('click',()=>loadPage(page-1));
-$('#next-page').addEventListener('click',()=>loadPage(page+1));
-$('#last-page').addEventListener('click',()=>loadPage(totalPages));
-$('#go-page').addEventListener('click',goToInputPage);
-$('#page-number').addEventListener('keydown',event=>{if(event.key==='Enter')goToInputPage()});
-$('#page-size').addEventListener('change',()=>{pageSize=Number($('#page-size').value)||50;loadPage(1)});
-
-function activateKind(nextKind){
-  if(!catalog)return;
-  kind=nextKind;source=null;books=[];page=1;totalPages=1;resultCount=0;requestId++;
-  document.querySelectorAll('.tab').forEach(item=>item.classList.toggle('active',item.dataset.kind===kind));
-  $('#kind-label').textContent=labels[kind];
-  $('#book-rows').innerHTML='';
-  $('#pagination').hidden=true;
-  const isAll=kind==='all';
-  $('#all-controls').hidden=!isAll;
-  $('#all-threshold-controls').hidden=!isAll;
-  $('#source-controls').hidden=isAll;
-  if(isAll){
-    $('#source-title').textContent='全部书籍';
-    loadAllBooks(1);
-    return;
-  }
-  const hasSourceSearch=kind!=='top250';
-  $('#source-search-fields').hidden=!hasSourceSearch;
-  if(hasSourceSearch){
-    const [label,placeholder]=sourcePrompts[kind];
-    $('#source-search-label').textContent=label;
-    $('#source-search').placeholder=placeholder;
-  }
-  $('#source-search').value='';
-  $('#source-title').textContent='请选择一个来源';
-  $('#status').textContent='请选择左侧来源';
-  renderSources();
-  selectFirstSource();
-}
-
-function renderSources(){
-  if(!catalog||kind==='all')return;
-  const query=$('#source-search').value.trim().toLowerCase();
-  const matches=catalog.categories[kind].filter(item=>(item.label+' '+item.key).toLowerCase().includes(query));
-  const list=$('#source-list');
-  list.innerHTML='';
-  for(const item of matches){
-    const button=document.createElement('button');
-    button.className='source-item'+(source===item?' active':'');
-    button.setAttribute('aria-pressed',source===item?'true':'false');
-    button.innerHTML='<span>'+esc(item.label)+'</span><span>'+item.count.toLocaleString()+'</span>';
-    button.addEventListener('click',()=>{
-      source=item;
-      document.querySelectorAll('.source-item').forEach(node=>{node.classList.remove('active');node.setAttribute('aria-pressed','false')});
-      button.classList.add('active');button.setAttribute('aria-pressed','true');
-      $('#source-title').textContent=item.label;
-      loadSourcePage(1);
-    });
-    list.appendChild(button);
-  }
-  if(!matches.length)list.textContent='没有匹配的来源';
-}
-
-function selectFirstSource(){const first=$('#source-list .source-item');if(first)first.click()}
-
-function ensureAllWorker(){
-  if(allWorker)return allWorker;
-  allWorker=new Worker('assets/all-books-worker.js');
-  allWorker.onmessage=event=>{
-    const data=event.data;
-    if(data.requestId!==requestId||kind!=='all')return;
-    if(data.error){$('#status').textContent='全部书籍索引加载失败，请稍后重试。';return}
-    books=data.books.map(item=>({id:item[0],title:item[1],rating:item[2],rating_count:item[3],url:'https://book.douban.com/subject/'+item[0]+'/'}));
-    page=data.page;totalPages=data.pages;resultCount=data.count;
-    renderBookRows(pageSize);
-    $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+resultCount.toLocaleString()+' 本，按综合评分排序';
-    updatePagination();
-  };
-  return allWorker;
-}
-
-function loadAllBooks(target){
-  const rating=Math.max(0,Math.min(10,Number($('#min-rating').value)||0));
-  const votes=Math.max(0,Math.floor(Number($('#min-votes').value)||0));
-  $('#min-rating').value=rating.toFixed(1);$('#min-votes').value=String(votes);
-  const currentRequest=++requestId;
-  $('#status').textContent='正在筛选全部书籍，首次使用需要加载索引…';
-  $('#book-rows').innerHTML='';$('#pagination').hidden=true;
-  ensureAllWorker().postMessage({requestId:currentRequest,file:catalog.all_books.file,page:target,pageSize:pageSize,query:$('#all-book-search').value.trim(),minRating:rating,minVotes:votes});
-}
-
-async function loadSourcePage(target){
-  if(!source)return;
-  totalPages=Math.max(1,Math.ceil(source.count/pageSize));
-  target=Math.max(1,Math.min(totalPages,Number(target)||1));
-  const currentRequest=++requestId;
-  $('#status').textContent='正在加载第 '+target+' 页…';
-  $('#book-rows').innerHTML='';$('#pagination').hidden=true;
-  const fileIndex=Math.min(source.files.length-1,Math.floor((target-1)*pageSize/source.page_size));
-  try{
-    const response=await fetch(source.files[fileIndex]);
-    if(!response.ok)throw Error(response.status);
-    const data=await response.json();
-    if(currentRequest!==requestId||kind==='all')return;
-    const start=(target-1)*pageSize-fileIndex*source.page_size;
-    books=data.books.slice(start,start+pageSize);
-    page=target;resultCount=source.count;
-    renderBookRows(pageSize);
-    $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+source.count.toLocaleString()+' 本，按综合评分排序';
-    updatePagination();
-  }catch(error){if(currentRequest===requestId)$('#status').textContent='这一页加载失败，请稍后重试。'}
-}
-
-function renderBookRows(pageSize){
-  const offset=(page-1)*pageSize;
-  $('#book-rows').innerHTML=books.map((book,index)=>'<tr><td>'+(offset+index+1)+'</td><td>'+book.id+'</td><td>'+esc(book.title)+'</td><td>'+(book.rating==null?'—':Number(book.rating).toFixed(1))+'</td><td class="rating-count">'+(book.rating_count==null?'—':book.rating_count.toLocaleString())+'</td><td><a href="'+encodeURI(book.url)+'" target="_blank" rel="noopener">豆瓣</a></td></tr>').join('');
-}
-
-function updatePagination(){
-  $('#pagination').hidden=totalPages<=1;
-  $('#page-number').value=page;$('#page-number').max=totalPages;
-  $('#page-total').textContent='/ '+totalPages+' 页';
-  $('#first-page').disabled=page===1;$('#previous-page').disabled=page===1;
-  $('#next-page').disabled=page===totalPages;$('#last-page').disabled=page===totalPages;
-}
-
-function loadPage(target){if(kind==='all')loadAllBooks(target);else loadSourcePage(target)}
-function goToInputPage(){loadPage($('#page-number').value)}
-"""
-
-
-ALL_BOOKS_WORKER_JS = r"""let booksPromise=null,cacheKey='',matches=[];
-
-async function loadBooks(file){
-  if(!booksPromise){
-    booksPromise=fetch(new URL('../'+file,self.location.href)).then(response=>{
-      if(!response.ok)throw Error(response.status);
-      return response.json();
-    }).then(data=>data.books);
-  }
-  return booksPromise;
-}
-
-self.onmessage=async event=>{
-  const {requestId,file,page,pageSize,query,minRating,minVotes}=event.data;
-  try{
-    const books=await loadBooks(file);
-    const normalizedQuery=String(query||'').trim().toLocaleLowerCase('zh-CN');
-    const key=JSON.stringify([normalizedQuery,minRating,minVotes]);
-    if(key!==cacheKey){
-      matches=[];
-      for(let index=0;index<books.length;index++){
-        const book=books[index],rating=book[2],votes=book[3]??0;
-        const ratingMatches=minRating<=0?true:rating!==null&&rating>=minRating;
-        const textMatches=!normalizedQuery||String(book[0]).includes(normalizedQuery)||String(book[1]).toLocaleLowerCase('zh-CN').includes(normalizedQuery);
-        if(ratingMatches&&votes>=minVotes&&textMatches)matches.push(index);
-      }
-      cacheKey=key;
-    }
-    const pages=Math.max(1,Math.ceil(matches.length/pageSize));
-    const selectedPage=Math.max(1,Math.min(pages,Number(page)||1));
-    const start=(selectedPage-1)*pageSize;
-    const result=matches.slice(start,start+pageSize).map(index=>books[index]);
-    self.postMessage({requestId,page:selectedPage,pages,count:matches.length,books:result});
-  }catch(error){self.postMessage({requestId,error:String(error)})}
-};
-"""
-
-
-PAGES_WORKFLOW = """name: Deploy GitHub Pages
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
-jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
-"""
-
-
-REPOSITORY_GITIGNORE = """__pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
-*.sqlite3
-*.sqlite3-shm
-*.sqlite3-wal
-cache/
-logs/
-backups/
-"""
+INDEX_HTML = _template("index.html")
+STYLE_CSS = _template("assets/style.css")
+MOBILE_CSS = _template("assets/mobile.css")
+PAGINATION_CSS = ""
+FILTER_CSS = ""
+APP_JS = _template("assets/app.js")
+PAGES_DATA_JS = _template("assets/pages-data.js")
+FAVICON_SVG = _template("assets/favicon.svg")
+ALL_BOOKS_WORKER_JS = _template("assets/all-books-worker.js")
+PAGES_WORKFLOW = _template(".github/workflows/pages.yml")
+REPOSITORY_GITIGNORE = _template(".gitignore")

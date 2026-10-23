@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": ".",
+    "public": "dist_netlify/performance-20261023",
     "ignore": [
       "firebase.json",
       "**/.*",

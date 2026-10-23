@@ -1,0 +1,14 @@
+{
+  "original_sha256": "0f8e77b9616f4d53dd006c21d330b1cd854cb881eb5bffbd6283ae58385aee5e",
+  "categories_sha256": "525f0ef47196dc16bd157b2689c575598c6ba27013d21d6f6328e356327eb3e5",
+  "books_verified_in_order": 338820,
+  "pages": 3389,
+  "page_bytes": 14798814,
+  "legacy_json_bytes": 14761577,
+  "catalog_bytes": 303537,
+  "first_page_bytes": 3927,
+  "initial_json_bytes": 307464,
+  "page_root": "data/all-pages/0f8e77b9616f4d53/",
+  "legacy_url_preserved": "data/all-books.json",
+  "notes": "Exact records/order; only optional paging metadata added to catalog. Uncompressed file sizes, not measured transfer, latency, heap or energy."
+}

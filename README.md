@@ -54,7 +54,11 @@
 | `rating_count` | 评价人数 |
 | `url` | 豆瓣书籍页面链接 |
 
-网站目录位于 `data/catalog.json`，各来源按每页 100 本拆分为独立 JSON 文件，浏览器只加载当前页面所需的数据。“全部书籍”首次打开时按需加载紧凑索引 `data/all-books.json`，并在 Web Worker 中执行全库搜索与阈值筛选，避免阻塞页面交互。
+网站目录位于 `data/catalog.json`，各来源按每块100本拆分为JSON。默认仍为“全部书籍”，未设置筛选时只读当前块；需要全库文字、评分或评价人数筛选时才读取原 `data/all-books.json`，保留Worker已有的失败重试、30秒下载/解析超时和筛选结果复用。各来源共用最多8块LRU及在途请求，同块小页无需再次下载/解析，切换时中止不再需要的下载，迟到结果不改变当前页面。
+
+2026-10-23日常优化保留338,820条记录、全部来源关系和综合排名，未重新抓取。原目录加全库首屏15,065,031字节，现目录加首块307,464字节（首块3,927字节）；全库旧文件SHA保持不变。新增3,389块合计14,798,814字节，以静态存储换取按页加载。以上是未压缩文件大小，不代表实测延迟、堆内存或耗电。逐条/顺序验证见 [分片回执](results/pages-shards-verification.json)。
+
+前端源模板统一位于 `src/douban_books/templates/`，根 `index.html` 和 `assets/` 为其发布副本；修改UI后同步生成文件，测试会阻止两者漂移。生成器现在保留实际手机菜单、列表卡片和下载恢复，Python wheel也包含所需模板。现有公开数据的打包/核验命令：`PYTHONPATH=src python -m douban_books.pages_shards --pack`；只核验时省略 `--pack`，不访问豆瓣。四个平台共用经过核验的静态文件集合，Firebase/Cloudflare使用原有 `dist_netlify/` 输出目录；Netlify按维护中心规则延期。本项目无独立Windows EXE或APK。
 
 ## 项目结构
 

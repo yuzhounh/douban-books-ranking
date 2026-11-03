@@ -13,7 +13,7 @@ from douban_books.storage import Database
 def test_packaged_templates_match_published_ui_and_workflow() -> None:
     root = Path(__file__).resolve().parents[1]
     for relative in ("index.html", "assets/app.js", "assets/pages-data.js", "assets/all-books-worker.js",
-                     "assets/style.css", "assets/mobile.css", "assets/favicon.svg", ".github/workflows/pages.yml", ".gitignore"):
+                     "assets/i18n.js", "assets/style.css", "assets/mobile.css", "assets/favicon.svg", ".github/workflows/pages.yml", ".gitignore"):
         assert (pages_site._TEMPLATES / relative).read_text("utf-8") == (root / relative).read_text("utf-8")
 
 
@@ -198,3 +198,16 @@ def test_pages_ranking_matches_export_for_missing_or_nonpositive_votes(votes) ->
     expected = [row["douban_id"] for row in rank_books(rows)]
     assert expected == [2, 1, 3]
     assert [row["douban_id"] for row in _rank(rows, 2.5)] == expected
+
+
+def test_i18n_formula_and_mobile_rating_translation() -> None:
+    root = Path(__file__).resolve().parents[1]
+    i18n_js = (root / "assets" / "i18n.js").read_text("utf-8")
+    assert "tFormula" in i18n_js
+    assert 'replace(/评分/g, EN["评分"] || "Rating")' in i18n_js
+    assert 'replace(/评价人数/g, EN["评价人数"] || "Votes")' in i18n_js
+
+    mobile_css = (root / "assets" / "mobile.css").read_text("utf-8")
+    assert "html[lang=\"en\"]" in mobile_css
+    assert "content: 'Rating ';" in mobile_css
+    assert "content: ' votes';" in mobile_css

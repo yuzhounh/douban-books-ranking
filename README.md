@@ -1,5 +1,7 @@
 # Douban Books Ranking · 豆瓣读书排行
 
+[简体中文](README.md) · [English](README.en.md)
+
 > 汇集豆瓣标签、豆列与丛书，检索书籍并浏览综合排行。
 
 <p>

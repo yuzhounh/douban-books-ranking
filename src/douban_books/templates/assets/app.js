@@ -1,3 +1,4 @@
+const { t, tLabel, isEn, getLang, setLang } = window.I18N;
 const labels={all:'全部书籍',tag:'标签',doulist:'豆列',series:'丛书',top250:'Top 250'};
 const sourcePrompts={tag:['查找标签','输入标签名'],doulist:['查找豆列','输入豆列名'],series:['查找丛书','输入丛书名']};
 let catalog=null,kind='all',source=null,books=[],page=1,totalPages=1,resultCount=0,requestId=0,allWorker=null,pageSize=50;
@@ -10,17 +11,17 @@ fetch('data/catalog.json',{cache:'no-cache'})
   .then(data=>{
     catalog=data;
     pageStore.version=data.generated_at;
-    $('#formula').textContent='综合评分 = '+data.formula;
-    $('#generated-at').textContent='数据更新：'+new Date(data.generated_at).toLocaleString('zh-CN');
+    $('#formula').textContent=t('formula',{formula:data.formula});
+    $('#generated-at').textContent=t('updated',{date:new Date(data.generated_at).toLocaleString(isEn()?'en-US':'zh-CN')});
     const allCount = data.all_books.count;
-    $('#all-count').textContent = allCount >= 10000 ? (allCount / 10000).toFixed(1) + '万' : allCount.toLocaleString();
+    $('#all-count').textContent = isEn() ? allCount.toLocaleString('en-US') : (allCount >= 10000 ? (allCount / 10000).toFixed(1) + '万' : allCount.toLocaleString());
     const pill = $('#modal-all-count-pill');
-    if (pill) pill.textContent = allCount.toLocaleString();
+    if (pill) pill.textContent = allCount.toLocaleString(isEn()?'en-US':'zh-CN');
     for(const name of ['tag','doulist','series'])$('#'+name+'-count').textContent=data.categories[name].length;
     $('#top250-count').textContent='250';
     activateKind('all');
   })
-  .catch(()=>$('#status').textContent='目录加载失败，请稍后重试。');
+  .catch(()=>$('#status').textContent=t('catalogFail'));
 
 document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>activateKind(button.dataset.kind)));
 $('#source-search').addEventListener('input',renderSources);
@@ -50,7 +51,7 @@ function activateKind(nextKind){
   pageStore.cancel();
   kind=nextKind;source=null;books=[];page=1;totalPages=1;resultCount=0;requestId++;
   document.querySelectorAll('.tab').forEach(item=>item.classList.toggle('active',item.dataset.kind===kind));
-  $('#kind-label').textContent=labels[kind];
+  $('#kind-label').textContent=tLabel(labels[kind]);
   updateMobileCategoryLabel();
   $('#book-rows').innerHTML='';
   $('#pagination').hidden=true;
@@ -59,7 +60,7 @@ function activateKind(nextKind){
   $('#all-threshold-controls').hidden=!isAll;
   $('#source-controls').hidden=isAll;
   if(isAll){
-    $('#source-title').textContent='全部书籍';
+    $('#source-title').textContent=tLabel('全部书籍');
     loadAllBooks(1);
     return;
   }
@@ -67,12 +68,12 @@ function activateKind(nextKind){
   $('#source-search-fields').hidden=!hasSourceSearch;
   if(hasSourceSearch){
     const [label,placeholder]=sourcePrompts[kind];
-    $('#source-search-label').textContent=label;
-    $('#source-search').placeholder=placeholder;
+    $('#source-search-label').textContent=tLabel(label);
+    $('#source-search').placeholder=tLabel(placeholder);
   }
   $('#source-search').value='';
-  $('#source-title').textContent='请选择一个来源';
-  $('#status').textContent='请选择左侧来源';
+  $('#source-title').textContent=t('pickSource');
+  $('#status').textContent=t('pickLeftSource');
   renderSources();
   // 仅在桌面端侧边栏模式下自动选第一项；在移动端弹窗内绝不自动触发，让用户在弹窗中自选具体项
   if (window.innerWidth > 800) {
@@ -110,7 +111,7 @@ function renderSources(){
     });
     list.appendChild(button);
   }
-  if(!matches.length)list.textContent='没有匹配的来源';
+  if(!matches.length)list.textContent=t('noSourceMatch');
 }
 
 function selectFirstSource(){if(window.innerWidth<=800)return;const first=$('#source-list .source-item');if(first)first.click()}
@@ -121,7 +122,7 @@ function ensureAllWorker(){
   allWorker.onmessage=event=>{
     const data=event.data;
     if(data.requestId!==requestId||kind!=='all')return;
-    if(data.error){$('#status').textContent='全部书籍索引加载失败，联网后点击“筛选”重试。';return}
+    if(data.error){$('#status').textContent=t('allIndexFail');return}
     showAllPage(data);
   };
   return allWorker;
@@ -131,7 +132,7 @@ function showAllPage(data){
   books=data.books.map(item=>({id:item[0],title:item[1],rating:item[2],rating_count:item[3],url:'https://book.douban.com/subject/'+item[0]+'/'}));
   page=data.page;totalPages=data.pages;resultCount=data.count;
   renderBookRows(pageSize);
-  $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+resultCount.toLocaleString()+' 本，按综合评分排序';
+  $('#status').textContent=t('pageStatus',{page:page,total:totalPages,count:books.length,result:resultCount.toLocaleString(isEn()?'en-US':'zh-CN')});
   updatePagination();
 }
 
@@ -143,16 +144,16 @@ async function loadAllBooks(target){
   $('#book-rows').innerHTML='';$('#pagination').hidden=true;
   const query=$('#all-book-search').value.trim();
   if(!query&&rating===0&&votes===0&&catalog.all_books.paged){
-    $('#status').textContent='正在加载第 '+target+' 页…';
+    $('#status').textContent=t('loadingPage',{page:target});
     try{
       const data=await pageStore.range(catalog.all_books.paged,target,pageSize);
       if(currentRequest!==requestId||kind!=='all')return;
       showAllPage(data);
-    }catch(error){if(currentRequest===requestId)$('#status').textContent='这一页加载失败，联网后点击“筛选”重试。'}
+    }catch(error){if(currentRequest===requestId)$('#status').textContent=t('pageFailRetry')}
     return;
   }
   pageStore.cancel();
-  $('#status').textContent='正在筛选全部书籍，首次使用需要加载索引…';
+  $('#status').textContent=t('filterAll');
   ensureAllWorker().postMessage({requestId:currentRequest,file:catalog.all_books.file,page:target,pageSize:pageSize,query,minRating:rating,minVotes:votes});
 }
 
@@ -161,7 +162,7 @@ async function loadSourcePage(target){
   totalPages=Math.max(1,Math.ceil(source.count/pageSize));
   target=Math.max(1,Math.min(totalPages,Number(target)||1));
   const currentRequest=++requestId;
-  $('#status').textContent='正在加载第 '+target+' 页…';
+  $('#status').textContent=t('loadingPage',{page:target});
   $('#book-rows').innerHTML='';$('#pagination').hidden=true;
   const selectedSource=source;
   try{
@@ -170,9 +171,9 @@ async function loadSourcePage(target){
     books=data.books;
     page=data.page;resultCount=selectedSource.count;
     renderBookRows(pageSize);
-    $('#status').textContent='第 '+page+' / '+totalPages+' 页，本页 '+books.length+' 本，共 '+source.count.toLocaleString()+' 本，按综合评分排序';
+    $('#status').textContent=t('pageStatus',{page:page,total:totalPages,count:books.length,result:source.count.toLocaleString(isEn()?'en-US':'zh-CN')});
     updatePagination();
-  }catch(error){if(currentRequest===requestId)$('#status').textContent='这一页加载失败，请稍后重试。'}
+  }catch(error){if(currentRequest===requestId)$('#status').textContent=t('pageFail')}
 }
 
 function openBook(url) {
@@ -181,7 +182,7 @@ function openBook(url) {
 
 function renderBookRows(pageSize){
   if (books.length === 0) {
-    $('#book-rows').innerHTML = '<tr><td colspan="6" class="message">没有找到匹配的书籍条目</td></tr>';
+    $('#book-rows').innerHTML = '<tr><td colspan="6" class="message">' + t('empty') + '</td></tr>';
     return;
   }
   const offset = (page - 1) * pageSize;
@@ -191,13 +192,13 @@ function renderBookRows(pageSize){
     const votesStr = book.rating_count == null ? '—' : book.rating_count.toLocaleString();
     const url = encodeURI(book.url);
     const safeTitle = esc(book.title);
-    return `<tr data-url="${url}" tabindex="0" role="link" aria-label="在豆瓣打开《${safeTitle}》">` +
+    return `<tr data-url="${url}" tabindex="0" role="link" aria-label="${esc(t('open.aria',{title:book.title}))}">` +
       `<td class="rank">${rank}</td>` +
       `<td class="id">${book.id}</td>` +
       `<td class="title"><a class="book-title-link" href="${url}" target="_blank" rel="noopener">${safeTitle}</a><span class="inline-id">ID ${book.id}</span></td>` +
       `<td class="rating">${ratingStr}</td>` +
       `<td class="rating-count">${votesStr}</td>` +
-      `<td class="book-link-col"><a href="${url}" target="_blank" rel="noopener">豆瓣</a></td>` +
+      `<td class="book-link-col"><a href="${url}" target="_blank" rel="noopener">${t('douban')}</a></td>` +
     `</tr>`;
   }).join('');
 }
@@ -205,7 +206,7 @@ function renderBookRows(pageSize){
 function updatePagination(){
   $('#pagination').hidden=totalPages<=1;
   $('#page-number').value=page;$('#page-number').max=totalPages;
-  $('#page-total').textContent='/ '+totalPages+' 页';
+  $('#page-total').textContent=t('pagination.total',{pages:totalPages});
   $('#first-page').disabled=page===1;$('#previous-page').disabled=page===1;
   $('#next-page').disabled=page===totalPages;$('#last-page').disabled=page===totalPages;
 }
@@ -378,11 +379,11 @@ window.addEventListener('keydown', (e) => {
 function updateMobileCategoryLabel(subLabel) {
   const mobileVal = document.getElementById('mobileCurrentCategory');
   if (!mobileVal) return;
-  const mainLabel = labels[kind] || '全部书籍';
+  const mainLabel = tLabel(labels[kind] || '全部书籍');
   if (subLabel) {
     mobileVal.textContent = `${mainLabel} / ${subLabel}`;
   } else if (kind === 'all') {
-    mobileVal.textContent = '全部书籍';
+    mobileVal.textContent = tLabel('全部书籍');
   } else if (source && source.label) {
     mobileVal.textContent = `${mainLabel} / ${source.label}`;
   } else {
@@ -453,3 +454,20 @@ if (bookRowsTable) {
     }
   });
 }
+
+// 语言切换后重渲染当前视图（静态文案由 assets/i18n.js 处理）
+document.addEventListener('i18n:change', () => {
+  if (!catalog) return;
+  if (catalog.formula) $('#formula').textContent = t('formula', { formula: catalog.formula });
+  $('#generated-at').textContent = t('updated', { date: new Date(catalog.generated_at).toLocaleString(isEn() ? 'en-US' : 'zh-CN') });
+  if (catalog.all_books) {
+    const allCount = catalog.all_books.count;
+    $('#all-count').textContent = isEn() ? allCount.toLocaleString('en-US') : (allCount >= 10000 ? (allCount / 10000).toFixed(1) + '万' : allCount.toLocaleString());
+    const pill = $('#modal-all-count-pill');
+    if (pill) pill.textContent = allCount.toLocaleString(isEn() ? 'en-US' : 'zh-CN');
+  }
+  $('#kind-label').textContent = tLabel(labels[kind]);
+  $('#source-title').textContent = kind === 'all' ? tLabel('全部书籍') : (source ? source.label : t('pickSource'));
+  updateMobileCategoryLabel(source && source.label ? source.label : undefined);
+  loadPage(page || 1);
+});

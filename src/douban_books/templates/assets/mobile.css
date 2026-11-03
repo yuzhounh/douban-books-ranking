@@ -67,6 +67,9 @@
     font-weight: normal;
     font-size: 13px;
   }
+  html[lang="en"] td:nth-child(4)::before, html[lang="en"] td.rating::before {
+    content: 'Rating ';
+  }
   td:nth-child(5), td.rating-count {
     grid-column: 3;
     grid-row: 2;
@@ -81,6 +84,9 @@
     content: ' 人评价';
     color: var(--muted);
     font-size: 12px;
+  }
+  html[lang="en"] td:nth-child(5)::after, html[lang="en"] td.rating-count::after {
+    content: ' votes';
   }
   td[colspan], td.message {
     grid-column: 1 / -1;

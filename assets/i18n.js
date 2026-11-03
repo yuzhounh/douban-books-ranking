@@ -206,12 +206,23 @@
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.setAttribute("content", DOC.description[en ? "en" : "zh"]);
   }
+  function tFormula(formula) {
+    if (!formula || typeof formula !== "string") return formula;
+    if (!isEn()) return formula;
+    return formula
+      .replace(/评分/g, EN["评分"] || "Rating")
+      .replace(/评价人数/g, EN["评价人数"] || "Votes");
+  }
   function t(key, vars) {
     const entry = MESSAGES[key];
     let text = entry ? entry[isEn() ? "en" : "zh"] : key;
     if (vars) {
       Object.keys(vars).forEach(function (name) {
-        text = text.split("{" + name + "}").join(String(vars[name]));
+        let val = vars[name];
+        if (isEn() && key === "formula" && name === "formula") {
+          val = tFormula(val);
+        }
+        text = text.split("{" + name + "}").join(String(val));
       });
     }
     return text;
@@ -258,7 +269,7 @@
     if (b) b.addEventListener("click", toggle);
   }
 
-  window.I18N = { getLang, isEn, t, tLabel, applyStatic, setLang, changeLang: setLang };
+  window.I18N = { getLang, isEn, t, tLabel, tFormula, applyStatic, setLang, changeLang: setLang };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();

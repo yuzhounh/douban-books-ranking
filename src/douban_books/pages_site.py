@@ -122,6 +122,7 @@ def build_pages_site(
     )
     (out_dir / "assets" / "mobile.css").write_text(MOBILE_CSS, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "app.js").write_text(APP_JS, encoding="utf-8", newline="\n")
+    (out_dir / "assets" / "i18n.js").write_text(I18N_JS, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "pages-data.js").write_text(PAGES_DATA_JS, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "favicon.svg").write_text(FAVICON_SVG, encoding="utf-8", newline="\n")
     (out_dir / "assets" / "all-books-worker.js").write_text(
@@ -396,6 +397,7 @@ MOBILE_CSS = _template("assets/mobile.css")
 PAGINATION_CSS = ""
 FILTER_CSS = ""
 APP_JS = _template("assets/app.js")
+I18N_JS = _template("assets/i18n.js")
 PAGES_DATA_JS = _template("assets/pages-data.js")
 FAVICON_SVG = _template("assets/favicon.svg")
 ALL_BOOKS_WORKER_JS = _template("assets/all-books-worker.js")

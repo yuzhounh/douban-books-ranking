@@ -743,3 +743,22 @@ td.message {
   color: var(--muted);
   padding: 32px 16px;
 }
+
+/* 语言切换（顶栏 / 移动端设置抽屉） */
+.lang-select{width:auto;min-width:auto;padding:0 12px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;text-align:center;-webkit-appearance:none;appearance:none;}
+.lang-select:hover{border-color:var(--green);color:var(--green);background:var(--green-soft,rgba(0,0,0,.05));}
+.lang-select-drawer{font:inherit;font-size:13px;padding:6px 10px;border-radius:10px;border:1px solid var(--line,rgba(0,0,0,.15));background:var(--surface-strong,#fff);color:var(--text);cursor:pointer;}
+.lang-select-drawer:hover{border-color:var(--green);color:var(--green);}
+
+.lang-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  user-select: none;
+}
+.lang-toggle-text {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}

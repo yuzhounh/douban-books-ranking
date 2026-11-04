@@ -248,13 +248,13 @@ function applyTheme(theme) {
 
   const navSun = document.getElementById('theme-icon-sun');
   const navMoon = document.getElementById('theme-icon-moon');
-  if (navSun) navSun.style.display = isDark ? 'none' : 'inline-block';
-  if (navMoon) navMoon.style.display = isDark ? 'inline-block' : 'none';
+  if (navSun) navSun.style.display = isDark ? 'inline-block' : 'none';
+  if (navMoon) navMoon.style.display = isDark ? 'none' : 'inline-block';
 
   const drawerSun = document.getElementById('drawer-theme-icon-sun');
   const drawerMoon = document.getElementById('drawer-theme-icon-moon');
-  if (drawerSun) drawerSun.style.display = isDark ? 'none' : 'inline-block';
-  if (drawerMoon) drawerMoon.style.display = isDark ? 'inline-block' : 'none';
+  if (drawerSun) drawerSun.style.display = isDark ? 'inline-block' : 'none';
+  if (drawerMoon) drawerMoon.style.display = isDark ? 'none' : 'inline-block';
 }
 
 function toggleTheme() {

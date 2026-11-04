@@ -238,7 +238,7 @@
     const lang = getLang();
     const isChinese = lang === "zh";
     const label = isChinese ? "Switch to English" : "切换为中文";
-    const text = isChinese ? "中" : "EN";
+    const text = isChinese ? "EN" : "中";
     [document.getElementById("lang-toggle-btn"), document.getElementById("mobile-lang-toggle")].forEach((btn) => {
       if (!btn) return;
       btn.setAttribute("aria-label", label);

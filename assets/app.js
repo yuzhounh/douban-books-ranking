@@ -253,8 +253,8 @@ function applyTheme(theme) {
 
   const drawerSun = document.getElementById('drawer-theme-icon-sun');
   const drawerMoon = document.getElementById('drawer-theme-icon-moon');
-  if (drawerSun) drawerSun.style.display = isDark ? 'inline-block' : 'none';
-  if (drawerMoon) drawerMoon.style.display = isDark ? 'none' : 'inline-block';
+  if (drawerSun) drawerSun.style.display = isDark ? 'none' : 'inline-block';
+  if (drawerMoon) drawerMoon.style.display = isDark ? 'inline-block' : 'none';
 }
 
 function toggleTheme() {

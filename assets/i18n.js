@@ -238,14 +238,20 @@
     const lang = getLang();
     const isChinese = lang === "zh";
     const label = isChinese ? "Switch to English" : "切换为中文";
-    const text = isChinese ? "EN" : "中";
-    [document.getElementById("lang-toggle-btn"), document.getElementById("mobile-lang-toggle")].forEach((btn) => {
-      if (!btn) return;
-      btn.setAttribute("aria-label", label);
-      btn.setAttribute("title", label);
-      const span = btn.querySelector(".lang-toggle-text");
-      if (span) span.textContent = text;
-    });
+    const a = document.getElementById("lang-toggle-btn");
+    const b = document.getElementById("mobile-lang-toggle");
+    if (a) {
+      a.setAttribute("aria-label", label);
+      a.setAttribute("title", label);
+      const span = a.querySelector(".lang-toggle-text");
+      if (span) span.textContent = isChinese ? "EN" : "中";
+    }
+    if (b) {
+      b.setAttribute("aria-label", label);
+      b.setAttribute("title", label);
+      const span = b.querySelector(".lang-toggle-text");
+      if (span) span.textContent = isChinese ? "中" : "EN";
+    }
   }
   function setLang(lang) {
     const next = normalize(lang);
